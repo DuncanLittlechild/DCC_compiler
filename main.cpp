@@ -72,9 +72,9 @@ int main(const int argc, char* argv[]) {
     }
 
     // Check that file exists at the chosen location
-    const std::ifstream file {argv[1]};
-    if (!file) {
-        std::cout<<"File "<<argv[1]<<" could not be found";
+    std::filesystem::path file {argv[1]};
+    if (!std::filesystem::exists(file)) {
+        std::cout<<"File "<<file<<" could not be found\n";
         return 1;
     }
 
