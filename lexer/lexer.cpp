@@ -74,6 +74,7 @@ namespace Lexer {
                 // remove match from input
             }
         }
+        return tokens;
 
 
     }

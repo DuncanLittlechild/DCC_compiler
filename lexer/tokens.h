@@ -62,8 +62,8 @@ namespace Token {
             {std::regex("^return\\b"),        [](const auto&)   { return tokenFactory(Return{});}},
             {std::regex("^\\("),              [](const auto&)   { return tokenFactory(OpenParen{}); }},
             {std::regex("^\\)"),              [](const auto&)   { return tokenFactory(CloseParen{});}},
-            {std::regex("^{"),                [](const auto&)   { return tokenFactory(OpenBrace{}); }},
-            {std::regex("^}"),                [](const auto&)   { return tokenFactory(CloseBrace{});}},
+            {std::regex("^\\{"),              [](const auto&)   { return tokenFactory(OpenBrace{}); }},
+            {std::regex("^\\}"),              [](const auto&)   { return tokenFactory(CloseBrace{});}},
             {std::regex("^;"),                [](const auto&)   { return tokenFactory(Semicolon{});}}
         }};
 }
