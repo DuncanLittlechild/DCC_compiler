@@ -1,16 +1,13 @@
 // Generate a list of tokens from an inputted file
 
-#include "tokens.h"
 #include <vector>
 #include <array>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <regex>
 #include <functional>
+#include "lexer.h"
 
 namespace Lexer {
-    static const std::regex initialWhitespace("^\\s+");
 
     void shrinkLine(std::string& line, std::smatch& match) {
         line = line.substr(match.position(0) + match.length());
