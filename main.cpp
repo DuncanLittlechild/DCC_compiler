@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <cstdio>
 
+#include "lexer/lexer.h"
+
 constexpr std::string_view g_stopAtLexStr{ "--lex"};
 constexpr char g_stopAtLexCode {'l'};
 
@@ -96,8 +98,12 @@ int main(const int argc, char* argv[]) {
     }
 
     // Run compiler
+    std::vector<Token::Token> tokens {Lexer::lexFile(preprocessedFileName)};
+
     // For now, just use gcc
     // generate string for compiled filename
+
+    /*
     std::filesystem::path compiledFileName {preprocessedFileName};
     compiledFileName.replace_extension(".s");
 
@@ -143,7 +149,7 @@ int main(const int argc, char* argv[]) {
         std::cout << "Error: compiled file not deleted with error code "<< result <<"\n";
         return 1;
     }
-
+*/
 
     return 0;
 }
