@@ -27,7 +27,7 @@ namespace Token {
 
     // Non-empty structs
     struct Identifier { std::string name; };
-    struct Constant { std::string value; };
+    struct Constant { int value; };
 
     // Main token struct
     // Wrapper for a std::variant containing token types
@@ -45,11 +45,16 @@ namespace Token {
         return Token{type};
     }
 
-    template <typename T>
-    inline Token tokenFactory(const T& type, const std::smatch& val) {
-        T tmp {val[0]};
+    inline Token tokenFactory(const Identifier& type, const std::smatch& val) {
+        Identifier tmp {val[0]};
         return Token{tmp};
     }
+
+    inline Token tokenFactory(const Constant& type, const std::smatch& val) {
+        Constant tmp {std::stoi(val[0])};
+        return Token{tmp};
+    }
+
 
     using regexLookup = std::pair<std::regex, std::function<Token(std::smatch)>>;
     // Keywords must be lower down the array than patterns for this to work
