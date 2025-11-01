@@ -19,7 +19,20 @@ constexpr char g_stopAtCodegenCode {'c'};
 constexpr std::string_view g_stopAtEmissionStr {"-S"};
 constexpr char g_stopAtEmissionCode {'e'};
 
+using FilePath = std::filesystem::path;
 
+void runPreprocessor(const FilePath& fileName, const FilePath& preprocessedFileName) {
+    // Construct the string, then execute it as a command line prompt
+    std::stringstream ss {};
+    ss << "gcc -E -P "<< fileName <<" -o " << preprocessedFileName;
+    std::string  preprocessCommand {ss.str()};
+    int result {std::system(preprocessCommand.c_str())};
+    // If the command line prompt could not be executed, error and exit
+    if (result) {
+        std::cout << "Error: gcc preprocess aborted with error code "<< result <<"\n";
+        throw std::runtime_error("gcc preprocess aborted");
+    }
+}
 
 int main(const int argc, char* argv[]) {
     // Process command line arguments
@@ -67,44 +80,45 @@ int main(const int argc, char* argv[]) {
     }
 
     //Check that the filename is a c file
-    std::filesystem::path fileName {argv[1]};
+    const FilePath fileName {argv[1]};
     if (fileName.extension().string() != ".c") {
         std::cout<<"File must be a .c file";
         return 1;
     }
 
     // Check that file exists at the chosen location
-    std::filesystem::path file {argv[1]};
-    if (!std::filesystem::exists(file)) {
-        std::cout<<"File "<<file<<" could not be found\n";
+    if (!std::filesystem::exists(fileName)) {
+        std::cout<<"File "<< fileName <<" could not be found\n";
         return 1;
     }
 
+
     // Run preprocessor
     // generate string for new file name, replacing .c with .i
-    std::filesystem::path preprocessedFileName {fileName};
+    FilePath preprocessedFileName {fileName};
     preprocessedFileName.replace_extension(".i");
 
     // Construct the string, then execute it as a command line prompt
-    std::stringstream ss {};
-    ss << "gcc -E -P "<< fileName <<" -o " << preprocessedFileName;
-    std::string  preprocessCommand {ss.str()};
-    int result {std::system(preprocessCommand.c_str())};
-
-    // If the command line prompt could not be executed, error and exit
-    if (result) {
-        std::cout << "Error: gcc preprocess aborted with error code "<< result <<"\n";
+    try {
+        runPreprocessor(fileName, preprocessedFileName);
+    } catch (const std::runtime_error& preProcessorError){
+        std::cout << "Preprocessor failed";
         return 1;
     }
 
     // Run compiler
     std::vector<Token::Token> tokens {Lexer::lexFile(preprocessedFileName)};
 
+    // check stopCode
+    if (stopCode == g_stopAtLexCode) {
+        return 0;
+    }
+
     // For now, just use gcc
     // generate string for compiled filename
 
     /*
-    std::filesystem::path compiledFileName {preprocessedFileName};
+    FilePath compiledFileName {preprocessedFileName};
     compiledFileName.replace_extension(".s");
 
     //Reset stringstream buffer
@@ -130,7 +144,7 @@ int main(const int argc, char* argv[]) {
     }
 
     // Run assembler and linker
-    std::filesystem::path outputFileName {compiledFileName};
+    FilePath outputFileName {compiledFileName};
     outputFileName.replace_extension();
 
     ss.str("");
