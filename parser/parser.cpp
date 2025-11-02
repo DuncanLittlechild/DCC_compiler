@@ -18,6 +18,8 @@ namespace Parser {
 		int index() const { return m_index; }
 		void setIndex(int index) { m_index = index; }
 
+		int size() const { return static_cast<int>(std::ssize(m_vectorRef)); }
+
 		VectorAndIterator& operator++() {
 			if (m_index < m_vectorRef.size()) {
 				++m_index;
@@ -142,7 +144,10 @@ namespace Parser {
 	Ast::Program parseProgram(std::vector<Token::Token>& t) {
 		VectorAndIterator tokens {t};
 		Ast::Program tmp {parseFunction(tokens)};
+		if (tokens.index() != (tokens.size())) {
+			int remaining {tokens.size() - tokens.index()};
+			throw std::out_of_range("Tokens remaining in tokens vector. Quantity: " + std::to_string(remaining));
+		}
 		return tmp;
 	}
-
 }
