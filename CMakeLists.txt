@@ -9,4 +9,5 @@ add_executable(dcc main.cpp
         lexer/lexer.h
         parser/ast.h
         parser/parser.cpp
+        parser/parser.h
 )

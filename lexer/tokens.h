@@ -26,22 +26,25 @@ namespace Token {
 
     // Keywords
     struct Return : Base {};
+    static const std::string returnString {"return"};
 
     // Keyword Types
     struct Int : Base {};
-
+    static const std::string intString {"int"};
     struct Void : Base {};
+    static const std::string voidString {"void"};
 
     // Punctuation
     struct OpenParen : Base {};
-
+    static const std::string openParenString {"("};
     struct CloseParen : Base {};
-
+    static const std::string closeParenString {")"};
     struct OpenBrace : Base {};
-
+    static const std::string openBraceString {"{"};
     struct CloseBrace : Base {};
-
+    static const std::string closeBraceString {"}"};
     struct Semicolon : Base {};
+    static const std::string semicolonString {";"};
 
     // Non-empty structs
     // Function/ variable identifier
@@ -51,6 +54,7 @@ namespace Token {
         Identifier() = default;
         explicit Identifier(const std::string& name) : name{name} {}
     };
+    static const std::string identifierString {"identifier"};
 
     // Integer constant
     struct Constant : Base {
@@ -59,6 +63,7 @@ namespace Token {
         Constant() = default;
         explicit Constant(int value): value{value}{};
     };
+    static const std::string constantString {"constant"};
 
     // Main token struct
     // Wrapper for a std::variant containing token types
@@ -118,18 +123,18 @@ namespace Visitor {
     template<class... Ts>
     Overloaded(Ts...) -> Overloaded<Ts...>;
 
-    inline std::string getStructName(Token::Token& token) {
+    inline const std::string& getStructName(Token::Token& token) {
         return std::visit(Overloaded{
-            [](Token::Return& ret)     { return "Return";},
-            [](Token::Void& ret)       { return "Void";},
-            [](Token::Int& ret)        { return "Int";},
-            [](Token::OpenParen& ret)  { return "OpenParen";},
-            [](Token::CloseParen& ret) { return "CloseParen";},
-            [](Token::OpenBrace& ret)  { return "OpenBrace";},
-            [](Token::CloseBrace& ret) { return "CloseBrace";},
-            [](Token::Semicolon& ret)  { return "Semicolon";},
-            [](Token::Identifier& ret) { return "Identifier";},
-            [](Token::Constant& ret)   { return "Constant";}
+            [](Token::Return& ret) -> const std::string&     { return Token::returnString; },
+            [](Token::Void& ret) -> const std::string&       { return Token::voidString; },
+            [](Token::Int& ret) -> const std::string&        { return Token::intString; },
+            [](Token::OpenParen& ret) -> const std::string&  { return Token::openParenString; },
+            [](Token::CloseParen& ret) -> const std::string& { return Token::closeParenString; },
+            [](Token::OpenBrace& ret) -> const std::string&  { return Token::openBraceString; },
+            [](Token::CloseBrace& ret) -> const std::string& { return Token::closeBraceString;},
+            [](Token::Semicolon& ret) -> const std::string&  { return Token::semicolonString; },
+            [](Token::Identifier& ret) -> const std::string& { return Token::identifierString; },
+            [](Token::Constant& ret) -> const std::string&   { return Token::constantString; },
         }, token.type);
     }
 

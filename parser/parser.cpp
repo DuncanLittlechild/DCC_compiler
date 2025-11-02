@@ -2,26 +2,24 @@
 // Created by dunca on 01/11/2025.
 //
 
-#include "ast.h"
-#include "../lexer/tokens.h"
+#include "parser.h"
 
 // Implements recursive descent parsing
 namespace Parser {
 
 	//class to iterate over the vector of tokens
 	class VectorAndIterator {
-	using VectorPointer = std::unique_ptr<std::vector<Token::Token>>;
 	private:
-		VectorPointer m_vectorRef;
+		std::vector<Token::Token>& m_vectorRef;
 		int m_index {0};
 	public:
-		explicit VectorAndIterator(VectorPointer vec) : m_vectorRef(std::move(vec)) {};
+		explicit VectorAndIterator(std::vector<Token::Token>& vec) : m_vectorRef(vec) {};
 
 		int index() const { return m_index; }
 		void setIndex(int index) { m_index = index; }
 
 		VectorAndIterator& operator++() {
-			if (m_index < m_vectorRef->size()) {
+			if (m_index < m_vectorRef.size()) {
 				++m_index;
 			} else {
 				throw std::out_of_range("VectorAndIterator::operator++ going out of range");
@@ -39,7 +37,7 @@ namespace Parser {
 		}
 
 		VectorAndIterator& operator+=(int add) {
-			if (m_index + add < m_vectorRef->size()) {
+			if (m_index + add < m_vectorRef.size()) {
 				m_index += add;
 			} else {
 				throw std::out_of_range("VectorAndIterator::operator+= going out of range");
@@ -58,19 +56,19 @@ namespace Parser {
 		}
 
 		Token::Token& operator[](const int index) const {
-			return (*m_vectorRef)[index];
+			return m_vectorRef[index];
 		}
 
 		Token::Token& takeCurrent() {
-			Token::Token& tmp{(*m_vectorRef)[m_index]};
+			Token::Token& tmp{m_vectorRef[m_index]};
 			++m_index;
 			return tmp;
 		}
 	};
 
-	Token::Token& expect(auto&& expected, VectorAndIterator& tokens) {
+	Token::Token& expect(auto& expected, VectorAndIterator& tokens) {
 		Token::Token& actual {tokens.takeCurrent()};
-		if (actual != expected) {
+		if (Visitor::getStructName(actual) != expected) {
 			std::string error = "Parser::expect found unexpected token " + Visitor::getStructName(actual) +
 								" at index " + std::to_string(tokens.index());
 			throw std::invalid_argument(error);
@@ -87,69 +85,64 @@ namespace Parser {
 		return std::make_unique<Ast::IntConstant>(tokenValue);
 	}
 
-	auto parseExp(VectorAndIterator& tokens) {
+	std::unique_ptr<Ast::Constant> parseConstant(VectorAndIterator& tokens) {
 		//Check that token contains Token::Constant - if not, throw an error
 		// If it does, return the current token
-		auto& constantToken {expect(Token::Token{Token::Constant{}}, tokens)};
+		auto& constantToken {expect(Token::constantString, tokens)};
 
 		// Return a unique pointer to an IntConstant Object
 		return parseInt(constantToken);
 	}
 
-	auto parseStatement(VectorAndIterator& tokens) {
+	std::unique_ptr<Ast::Statement> parseStatement(VectorAndIterator& tokens) {
 		// Check that token contains Token::Return - if not, throw an error
-		expect(Token::Token{Token::Return{}}, tokens);
+		expect(Token::returnString, tokens);
 
 		// Get the return value
-		auto returnValue {parseExp(tokens)};
+		auto returnValue {parseConstant(tokens)};
 
 		// Check the statement ends with a semicolon token
-		expect(Token::Token{Token::Semicolon{}}, tokens);
+		expect(Token::semicolonString, tokens);
 
-		// Make a unique pointer to a returnKeyword object
-		auto returnPtr {std::make_unique<Ast::ReturnKeyword>(std::move(returnValue))};
-
-		// return a unique pointer to a ReturnKeyword object
-		return returnPtr;
+		// return a unique pointer to a statement object
+		return std::make_unique<Ast::Statement>(Token::returnString, std::move(returnValue));
 	}
 
-	auto parseIdentifier(VectorAndIterator& tokens) {
+	std::unique_ptr<Ast::Identifier> parseIdentifier(VectorAndIterator& tokens) {
 		// Check that the token is an identifier
-		auto& id {expect(Token::Token{Token::Identifier{}}, tokens)};
+		auto& id {expect(Token::identifierString, tokens)};
 
 		// Get the identifier string
 		std::string& identifier {std::get<Token::Identifier>(id.type).name};
 
-		// Make a unique pointer to an identifier object
-		auto idPtr {std::make_unique<Ast::Identifier>(identifier)};
-
 		//return a pointer to an identifier object
-		return idPtr;
+		return std::make_unique<Ast::Identifier>(identifier);
 	}
 
-	auto parseFunction(VectorAndIterator& tokens) {
+	std::unique_ptr<Ast::Function> parseFunction(VectorAndIterator& tokens) {
 		// Check return value
-		expect(Token::Token{Token::Int{}}, tokens);
+		expect(Token::intString, tokens);
 
 		// Check Identifier
 		auto identifier {parseIdentifier(tokens)};
 
-		expect(Token::Token{Token::OpenParen{}}, tokens);
-		expect(Token::Token{Token::Void{}}, tokens);
-		expect(Token::Token{Token::CloseParen{}}, tokens);
-		expect(Token::Token{Token::OpenBrace{}}, tokens);
+		expect(Token::openParenString, tokens);
+		expect(Token::voidString, tokens);
+		expect(Token::closeParenString, tokens);
+		expect(Token::openBraceString, tokens);
 
 		// Get a unique pointer to the statement body
 		auto statementBody {parseStatement(tokens)};
 
-		expect(Token::Token{Token::CloseBrace{}}, tokens);
+		expect(Token::closeBraceString, tokens);
 
-		auto function {std::make_unique<Ast::Function>(identifier, statementBody)};
-
-		return Ast::Function {identifier, parseStatement(tokens)};
+		return std::make_unique<Ast::Function>(std::move(identifier), std::move(statementBody));
 	}
 
-	Ast::Program parseProgram(VectorAndIterator& tokens) {
-		return Ast::Program {parseFunction(tokens)};
+	Ast::Program parseProgram(std::vector<Token::Token>& t) {
+		VectorAndIterator tokens {t};
+		Ast::Program tmp {parseFunction(tokens)};
+		return tmp;
 	}
+
 }
