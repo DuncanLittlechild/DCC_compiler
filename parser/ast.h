@@ -46,7 +46,9 @@ namespace Ast {
 		int m_value{};
 	public:
 		explicit IntConstant(const int& value): m_value{value} {};
-		std::string identify() const override { return "Constant(" + std::to_string(m_value) + ")"; };
+		std::string identify() const override {
+			return "Constant(" + std::to_string(m_value) + ")";
+		};
 	};
 
 	class Identifier : public Ast {
@@ -67,8 +69,8 @@ namespace Ast {
 			: m_keyword{keyword}
 			, m_constant{std::move(constant)}
 		{}
-		std::string identify() const override {
-			return "body = " + m_keyword;
+		[[nodiscard]] std::string identify() const override {
+			return m_keyword + "(\n\t\t\t" + m_constant->identify() + "\t\t\n)";
 		}
 	};
 
@@ -80,16 +82,21 @@ namespace Ast {
 		Function(std::unique_ptr<Identifier>&& identifier, std::unique_ptr<Statement>&& statement)
 		: m_identifier{std::move(identifier)}
 		, m_statement{std::move(statement)} {}
-		std::string identify() const override {
-			return "Function(\nname = " + m_identifier->identify() + ")";
+		[[nodiscard]] std::string identify() const override {
+			return "Function(\n\t\tname = " + m_identifier->identify() + "\n\t\tbody = " + m_statement->identify() + "\n\t)";
 		}
 	};
 
+	// Holds an abstract syntax tree for a whole program
 	class Program : public Ast {
 		std::unique_ptr<Function> m_function;
 	public:
-		Program() = delete;
+		Program() = default;
 		explicit Program(std::unique_ptr<Function>&& function): m_function{std::move(function)} {}
+
+		[[nodiscard]] std::string identify() const override {
+			return "Program(\n\t" + m_function->identify() + "\n)";
+		}
 	};
 }
 #endif //DCC_AST_H

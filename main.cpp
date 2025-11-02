@@ -112,13 +112,23 @@ int main(const int argc, char* argv[]) {
 
     // check stopCode
     if (stopCode == g_stopAtLexCode) {
+        std::cout << "Stopped at lexer";
         return 0;
     }
 
     // Run parser
-    Ast::Program abstractSyntaxTree {Parser::parseProgram(tokens)};
+    Ast::Program abstractSyntaxTree;
+    try {
+        abstractSyntaxTree = Parser::parseProgram(tokens);
+    } catch (const std::runtime_error& syntaxTreeError) {
+        std::cout << syntaxTreeError.what();
+        return 1;
+    }
+
+    std::cout << abstractSyntaxTree;
 
     if (stopCode == g_stopAtParseCode) {
+        std::cout << "Stopped at parser";
         return 0;
     }
 
