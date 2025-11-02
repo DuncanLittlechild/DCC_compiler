@@ -68,12 +68,88 @@ namespace Parser {
 		}
 	};
 
-	void expect(Token::Token expected, VectorAndIterator tokens) {
-		Token::Token actual {tokens.takeCurrent()};
-		if (actual != expected) {}
+	Token::Token& expect(auto&& expected, VectorAndIterator& tokens) {
+		Token::Token& actual {tokens.takeCurrent()};
+		if (actual != expected) {
+			std::string error = "Parser::expect found unexpected token " + Visitor::getStructName(actual) +
+								" at index " + std::to_string(tokens.index());
+			throw std::invalid_argument(error);
+		}
+		return actual;
 	}
 
-	Ast::ReturnKeyword parseStatement(Ast::Statement& statement) {
-		return Ast::ReturnKeyword{2};
+	// Parse Integer values and return a pointer
+	std::unique_ptr<Ast::IntConstant> parseInt (Token::Token& token) {
+		// Get the value stored in the token
+		int tokenValue {std::get<Token::Constant>(token.type).value};
+
+		// Make it a unique pointer and return it
+		return std::make_unique<Ast::IntConstant>(tokenValue);
+	}
+
+	auto parseExp(VectorAndIterator& tokens) {
+		//Check that token contains Token::Constant - if not, throw an error
+		// If it does, return the current token
+		auto& constantToken {expect(Token::Token{Token::Constant{}}, tokens)};
+
+		// Return a unique pointer to an IntConstant Object
+		return parseInt(constantToken);
+	}
+
+	auto parseStatement(VectorAndIterator& tokens) {
+		// Check that token contains Token::Return - if not, throw an error
+		expect(Token::Token{Token::Return{}}, tokens);
+
+		// Get the return value
+		auto returnValue {parseExp(tokens)};
+
+		// Check the statement ends with a semicolon token
+		expect(Token::Token{Token::Semicolon{}}, tokens);
+
+		// Make a unique pointer to a returnKeyword object
+		auto returnPtr {std::make_unique<Ast::ReturnKeyword>(std::move(returnValue))};
+
+		// return a unique pointer to a ReturnKeyword object
+		return returnPtr;
+	}
+
+	auto parseIdentifier(VectorAndIterator& tokens) {
+		// Check that the token is an identifier
+		auto& id {expect(Token::Token{Token::Identifier{}}, tokens)};
+
+		// Get the identifier string
+		std::string& identifier {std::get<Token::Identifier>(id.type).name};
+
+		// Make a unique pointer to an identifier object
+		auto idPtr {std::make_unique<Ast::Identifier>(identifier)};
+
+		//return a pointer to an identifier object
+		return idPtr;
+	}
+
+	auto parseFunction(VectorAndIterator& tokens) {
+		// Check return value
+		expect(Token::Token{Token::Int{}}, tokens);
+
+		// Check Identifier
+		auto identifier {parseIdentifier(tokens)};
+
+		expect(Token::Token{Token::OpenParen{}}, tokens);
+		expect(Token::Token{Token::Void{}}, tokens);
+		expect(Token::Token{Token::CloseParen{}}, tokens);
+		expect(Token::Token{Token::OpenBrace{}}, tokens);
+
+		// Get a unique pointer to the statement body
+		auto statementBody {parseStatement(tokens)};
+
+		expect(Token::Token{Token::CloseBrace{}}, tokens);
+
+		auto function {std::make_unique<Ast::Function>(identifier, statementBody)};
+
+		return Ast::Function {identifier, parseStatement(tokens)};
+	}
+
+	Ast::Program parseProgram(VectorAndIterator& tokens) {
+		return Ast::Program {parseFunction(tokens)};
 	}
 }

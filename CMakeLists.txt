@@ -8,4 +8,5 @@ add_executable(dcc main.cpp
         lexer/tokens.h
         lexer/lexer.h
         parser/ast.h
+        parser/parser.cpp
 )

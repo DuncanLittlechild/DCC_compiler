@@ -8,26 +8,57 @@
 #include <variant>
 #include <string>
 #include <array>
+#include <typeinfo>
 
 namespace Token {
     // Empty structs
+    struct Base {
+        virtual bool operator==(const Base& rhs) const {
+            return typeid(*this) == typeid(rhs);
+        }
+
+        virtual bool operator!=(const Base& rhs) const {
+            return !(*this == rhs);
+        }
+
+        virtual ~Base() = default;
+    };
+
     // Keywords
-    struct Return {};
+    struct Return : Base {};
 
     // Keyword Types
-    struct Int {};
-    struct Void{};
+    struct Int : Base {};
+
+    struct Void : Base {};
 
     // Punctuation
-    struct OpenParen {};
-    struct CloseParen {};
-    struct OpenBrace {};
-    struct CloseBrace {};
-    struct Semicolon {};
+    struct OpenParen : Base {};
+
+    struct CloseParen : Base {};
+
+    struct OpenBrace : Base {};
+
+    struct CloseBrace : Base {};
+
+    struct Semicolon : Base {};
 
     // Non-empty structs
-    struct Identifier { std::string name; };
-    struct Constant { int value; };
+    // Function/ variable identifier
+    struct Identifier : Base {
+        std::string name{};
+
+        Identifier() = default;
+        explicit Identifier(const std::string& name) : name{name} {}
+    };
+
+    // Integer constant
+    struct Constant : Base {
+        int value{};
+
+        Constant() = default;
+        explicit Constant(int value): value{value}{};
+    };
 
     // Main token struct
     // Wrapper for a std::variant containing token types
@@ -38,6 +69,10 @@ namespace Token {
             OpenParen, CloseParen, OpenBrace, CloseBrace, Semicolon,
             Identifier, Constant
         > type;
+
+        friend bool operator==(const Token& lhs, const Token& rhs) {
+            return lhs.type == rhs.type;
+        }
     };
 
     template <typename T>
@@ -71,5 +106,32 @@ namespace Token {
             {std::regex("^\\}"),              [](const auto&)   { return tokenFactory(CloseBrace{});}},
             {std::regex("^;"),                [](const auto&)   { return tokenFactory(Semicolon{});}}
         }};
+}
+
+// Visitors for std::variant
+namespace Visitor {
+    // Overloaded helper to expose the operator() of lambdas
+    template<class... Ts>
+    struct Overloaded : Ts... {
+        using Ts::operator()...;
+    };
+    template<class... Ts>
+    Overloaded(Ts...) -> Overloaded<Ts...>;
+
+    inline std::string getStructName(Token::Token& token) {
+        return std::visit(Overloaded{
+            [](Token::Return& ret)     { return "Return";},
+            [](Token::Void& ret)       { return "Void";},
+            [](Token::Int& ret)        { return "Int";},
+            [](Token::OpenParen& ret)  { return "OpenParen";},
+            [](Token::CloseParen& ret) { return "CloseParen";},
+            [](Token::OpenBrace& ret)  { return "OpenBrace";},
+            [](Token::CloseBrace& ret) { return "CloseBrace";},
+            [](Token::Semicolon& ret)  { return "Semicolon";},
+            [](Token::Identifier& ret) { return "Identifier";},
+            [](Token::Constant& ret)   { return "Constant";}
+        }, token.type);
+    }
+
 }
 #endif //DCC_TOKENS_H
