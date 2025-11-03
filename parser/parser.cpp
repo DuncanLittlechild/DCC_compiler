@@ -79,7 +79,7 @@ namespace Parser {
 	}
 
 	// Parse Integer values and return a pointer
-	std::unique_ptr<Ast::IntConstant> parseInt (Token::Token& token) {
+	std::unique_ptr<Ast::IntConstant> parseIntConstant (Token::Token& token) {
 		// Get the value stored in the token
 		int tokenValue {std::get<Token::Constant>(token.type).value};
 
@@ -93,21 +93,25 @@ namespace Parser {
 		auto& constantToken {expect(Token::constantString, tokens)};
 
 		// Return a unique pointer to an IntConstant Object
-		return parseInt(constantToken);
+		return parseIntConstant(constantToken);
+	}
+
+	std::unique_ptr<Ast::KeywordStatement> parseKeywordStatement (const std::string& keyword, VectorAndIterator& tokens) {
+		// Get the return value
+		auto returnValuePtr {parseConstant(tokens)};
+
+		// Check the statement ends with a semicolon token
+		expect(Token::semicolonString, tokens);
+
+		return std::make_unique<Ast::KeywordStatement>(keyword, std::move(returnValuePtr));
 	}
 
 	std::unique_ptr<Ast::Statement> parseStatement(VectorAndIterator& tokens) {
 		// Check that token contains Token::Return - if not, throw an error
 		expect(Token::returnString, tokens);
 
-		// Get the return value
-		auto returnValue {parseConstant(tokens)};
-
-		// Check the statement ends with a semicolon token
-		expect(Token::semicolonString, tokens);
-
 		// return a unique pointer to a statement object
-		return std::make_unique<Ast::Statement>(Token::returnString, std::move(returnValue));
+		return parseKeywordStatement(Token::returnString, tokens);
 	}
 
 	std::unique_ptr<Ast::Identifier> parseIdentifier(VectorAndIterator& tokens) {

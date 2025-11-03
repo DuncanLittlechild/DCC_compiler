@@ -25,11 +25,11 @@ namespace Ast {
 	// represents integers, inherits from constant
 	class IntConstant;
 
+	class ReturnStatement;
+
 	class Ast {
 	public:
-		virtual std::string identify() const {
-			return "Ast";
-		}
+		virtual std::string identify() const = 0;
 
 		friend std::ostream& operator<<(std::ostream& out, const Ast& ast) {
 			out << ast.identify();
@@ -60,12 +60,14 @@ namespace Ast {
 		};
 	};
 
-	class Statement : public Ast {
+	class Statement : public Ast {};
+
+	class KeywordStatement : public Statement {
 		std::string m_keyword;
 		std::unique_ptr<Constant> m_constant{};
 	public:
-		Statement() = delete;
-		Statement(const std::string& keyword, std::unique_ptr<Constant>&& constant)
+		KeywordStatement() = delete;
+		KeywordStatement(const std::string& keyword, std::unique_ptr<Constant>&& constant)
 			: m_keyword{keyword}
 			, m_constant{std::move(constant)}
 		{}

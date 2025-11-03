@@ -10,4 +10,6 @@ add_executable(dcc main.cpp
         parser/ast.h
         parser/parser.cpp
         parser/parser.h
+        assembly_generator/assembly_generator.cpp
+        assembly_generator/assembly_ast.h
 )
