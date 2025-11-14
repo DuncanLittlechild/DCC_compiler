@@ -2,8 +2,7 @@
 // Created by dunca on 02/11/2025.
 //
 
-#include "../parser/ast.h"
-#include "assembly_ast.h"
+#include "assembly_generator.h"
 #include "../lexer/tokens.h"
 
 namespace AssemblyGenerator {
@@ -32,7 +31,6 @@ namespace AssemblyGenerator {
         auto destination {parseRegisterOperand(constant)};
         return std::make_unique<AAst::MovInstruction>(std::move(toMove), std::move(destination));
     }
-
 
     // Helper to construct the instruction list one at a time
     // Also checks the type of the statement, as single statements can produce multiple instructions

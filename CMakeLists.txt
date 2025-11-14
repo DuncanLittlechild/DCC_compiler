@@ -12,4 +12,5 @@ add_executable(dcc main.cpp
         parser/parser.h
         assembly_generator/assembly_generator.cpp
         assembly_generator/assembly_ast.h
+        assembly_generator/assembly_generator.h
 )
