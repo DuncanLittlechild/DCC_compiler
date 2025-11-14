@@ -39,41 +39,71 @@ namespace Ast {
 		virtual ~Ast() = default;
 	};
 
+	// Base class to derive from
+	// m_type is used to work out which derived class to dynamic_cast to
+	class Constant : public Ast {
+		std::string m_type;
+	public:
+		Constant(std::string& type)
+			: m_type{type}
+		{};
 
-	class Constant : public Ast {};
+		const std::string& type() const { return m_type; }
+		std::string getType() const { return m_type; }
+	};
 
 	class IntConstant : public Constant {
 		int m_value{};
 	public:
-		explicit IntConstant(const int& value): m_value{value} {};
+		explicit IntConstant(std::string type,const int& value)
+			: Constant{type}
+			, m_value{value} {};
+
 		std::string identify() const override {
 			return "Constant(" + std::to_string(m_value) + ")";
 		};
+
+		int value() const { return m_value; }
 	};
 
 	class Identifier : public Ast {
-		std::string m_name;
+		const std::string m_name;
 	public:
 		explicit Identifier(const std::string& name): m_name{name} {};
 		std::string identify() const override {
 			return '"' + m_name + '"';
 		};
+
+		std::string name() const { return m_name; }
 	};
 
-	class Statement : public Ast {};
+	// Base class to inherit statements from
+	// m_type allows the derived type to be identified
+	class Statement : public Ast {
+		std::string m_type;
+	public:
+		explicit Statement(const std::string& type): m_type{type} {};
 
+		const std::string& type() const { return m_type; }
+		std::string getType() const { return m_type; }
+	};
+
+	// Class for simple statements such as return 5
+	// The keyword used will be from a limited list
 	class KeywordStatement : public Statement {
-		std::string m_keyword;
 		std::unique_ptr<Constant> m_constant{};
 	public:
 		KeywordStatement() = delete;
 		KeywordStatement(const std::string& keyword, std::unique_ptr<Constant>&& constant)
-			: m_keyword{keyword}
+			: Statement{keyword}
 			, m_constant{std::move(constant)}
 		{}
+
 		[[nodiscard]] std::string identify() const override {
-			return m_keyword + "(\n\t\t\t" + m_constant->identify() + "\t\t\n)";
+			return this->type() + "(\n\t\t\t" + m_constant->identify() + "\t\t\n)";
 		}
+
+		const Constant& constant() const { return *m_constant; }
 	};
 
 	class Function : public Ast {
@@ -84,9 +114,13 @@ namespace Ast {
 		Function(std::unique_ptr<Identifier>&& identifier, std::unique_ptr<Statement>&& statement)
 		: m_identifier{std::move(identifier)}
 		, m_statement{std::move(statement)} {}
+
 		[[nodiscard]] std::string identify() const override {
 			return "Function(\n\t\tname = " + m_identifier->identify() + "\n\t\tbody = " + m_statement->identify() + "\n\t)";
 		}
+
+		const Identifier& identifier() const { return *m_identifier; }
+		Statement& statement() const { return *m_statement; }
 	};
 
 	// Holds an abstract syntax tree for a whole program
@@ -99,6 +133,8 @@ namespace Ast {
 		[[nodiscard]] std::string identify() const override {
 			return "Program(\n\t" + m_function->identify() + "\n)";
 		}
+
+		const Function& function() const { return *m_function; }
 	};
 }
 #endif //DCC_AST_H
