@@ -84,7 +84,7 @@ namespace Parser {
 		int tokenValue {std::get<Token::Constant>(token.type).value};
 
 		// Make it a unique pointer and return it
-		return std::make_unique<Ast::IntConstant>(tokenValue);
+		return std::make_unique<Ast::IntConstant>(Token::intString, tokenValue);
 	}
 
 	std::unique_ptr<Ast::Constant> parseConstant(VectorAndIterator& tokens) {
