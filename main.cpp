@@ -7,6 +7,7 @@
 
 #include "lexer/lexer.h"
 #include "parser/parser.h"
+#include "assembly_generator/assembly_generator.h"
 
 constexpr std::string_view g_stopAtLexStr{ "--lex"};
 constexpr char g_stopAtLexCode {'l'};
@@ -131,6 +132,10 @@ int main(const int argc, char* argv[]) {
         std::cout << "Stopped at parser";
         return 0;
     }
+
+    // Convert C Ast to assembly Ast
+    // TODO: add a type member to all base classes that can be used to determine what type to dynamic_cast to
+    AAst::Program assemblyAbstractSyntaxTree{AssemblyGenerator::parseProgram(abstractSyntaxTree)};
 
     // For now, just use gcc
     // generate string for compiled filename
