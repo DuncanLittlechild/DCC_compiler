@@ -14,7 +14,7 @@ namespace AssemblyEmitter {
     // Prints each instruction
     void emitFromMovInstruction(AAst::MovInstruction& instruction, std::ofstream& outputFile) {
         outputFile << "movl " << instruction.toMove().opString() << ", "
-            << instruction.destination().opString() << "\n";
+            << instruction.destination().opString();
     }
 
     // Prints the instructions
@@ -34,7 +34,7 @@ namespace AssemblyEmitter {
                     break;
 
                 default:
-                    throw std::runtime_error("Instruction type" + AAst::nodeTypeStrings[instruction->type()] + " is not supported");
+                    throw std::runtime_error("Instruction type " + AAst::nodeTypeStrings[instruction->type()] + " is not supported");
             }
 
             outputFile << "\n";

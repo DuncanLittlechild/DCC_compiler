@@ -8,6 +8,7 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "assembly_generator/assembly_generator.h"
+#include "assembly_emitter/assembly_emitter.h"
 
 constexpr std::string_view g_stopAtLexStr{ "--lex"};
 constexpr char g_stopAtLexCode {'l'};
@@ -140,53 +141,25 @@ int main(const int argc, char* argv[]) {
     // For now, just use gcc
     // generate string for compiled filename
 
-    /*
+
     FilePath compiledFileName {preprocessedFileName};
     compiledFileName.replace_extension(".s");
 
-    //Reset stringstream buffer
-    ss.str("");
-    ss << "gcc -S "<<preprocessedFileName<< " -o "<< compiledFileName;
-    std::string compileCommand {ss.str()};
-
-    result = std::system(compileCommand.c_str());
-    if (result) {
-        std::cout << "Error: gcc compile aborted with error code "<< result <<"\n";
+    // Generate Assembly
+    try {
+        AssemblyEmitter::emitAssembly(assemblyAbstractSyntaxTree, compiledFileName);
+    } catch (std::runtime_error& syntaxError) {
+        std::cout << syntaxError.what();
         return 1;
     }
 
-    // Run lexer
-    
-    // Run parser
-    // Generate Assembly
     // delete preprocessed file
-    result = std::remove(preprocessedFileName.c_str());
+    int result = std::remove(preprocessedFileName.c_str());
     if (result) {
         std::cout << "Error: preprocessed file not deleted with error code "<< result <<"\n";
         return 1;
     }
 
-    // Run assembler and linker
-    FilePath outputFileName {compiledFileName};
-    outputFileName.replace_extension();
-
-    ss.str("");
-    ss << "gcc "<<compiledFileName<<" -o "<< outputFileName;
-    std::string outputCommand {ss.str()};
-
-    result = std::system(outputCommand.c_str());
-    if (result) {
-        std::cout << "Error: gcc assembly and linking aborted with error code" << result << "\n";
-        return 1;
-    }
-
-    //delete compiledFile
-    result = std::remove( compiledFileName.c_str());
-    if (result) {
-        std::cout << "Error: compiled file not deleted with error code "<< result <<"\n";
-        return 1;
-    }
-*/
 
     return 0;
 }

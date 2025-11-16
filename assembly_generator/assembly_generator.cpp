@@ -8,7 +8,7 @@
 namespace AssemblyGenerator {
 
     std::unique_ptr<AAst::RegisterOperand> parseRegisterOperand(const Ast::Constant& constant) {
-        return std::make_unique<AAst::RegisterOperand>("%%EAX");
+        return std::make_unique<AAst::RegisterOperand>("%EAX");
     }
 
     std::unique_ptr<AAst::ImmOperand> parseImmOperand(const int value) {
