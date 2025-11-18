@@ -26,25 +26,36 @@ namespace Token {
 
     // Keywords
     struct Return : Base {};
-    static const std::string returnString {"return"};
-
-    // Keyword Types
+    static constexpr std::string returnString {"return"};
     struct Int : Base {};
-    static const std::string intString {"int"};
+    static constexpr std::string intString {"int"};
     struct Void : Base {};
-    static const std::string voidString {"void"};
+    static constexpr std::string voidString {"void"};
+    // Array of keyword types to iterate over
+    // Update when add new keyword
+    constexpr std::array<const std::string*, 3> keywordStringPtrs {&returnString, &intString, &voidString};
+    // Helper to identify if something is a keyword
+    bool isKeyword(const std::string& keyword) {
+        return !(std::find(keywordStringPtrs.begin(), keywordStringPtrs.end(), &keyword) == keywordStringPtrs.end());
+    }
 
     // Punctuation
     struct OpenParen : Base {};
-    static const std::string openParenString {"("};
+    static constexpr std::string openParenString {"("};
     struct CloseParen : Base {};
-    static const std::string closeParenString {")"};
+    static constexpr std::string closeParenString {")"};
     struct OpenBrace : Base {};
-    static const std::string openBraceString {"{"};
+    static constexpr std::string openBraceString {"{"};
     struct CloseBrace : Base {};
-    static const std::string closeBraceString {"}"};
+    static constexpr std::string closeBraceString {"}"};
     struct Semicolon : Base {};
-    static const std::string semicolonString {";"};
+    static constexpr std::string semicolonString {";"};
+
+    // Unary operators
+    struct Negate : Base {};
+    static constexpr std::string negateString {"-"};
+    struct Decrement : Base {};
+    static constexpr std::string decrementString {"--"};
 
     // Non-empty structs
     // Function/ variable identifier
@@ -54,7 +65,7 @@ namespace Token {
         Identifier() = default;
         explicit Identifier(const std::string& name) : name{name} {}
     };
-    static const std::string identifierString {"identifier"};
+    static constexpr std::string identifierString {"identifier"};
 
     // Integer constant
     struct Constant : Base {
@@ -63,7 +74,7 @@ namespace Token {
         Constant() = default;
         explicit Constant(int value): value{value}{};
     };
-    static const std::string constantString {"constant"};
+    static constexpr std::string constantString {"constant"};
 
     // Main token struct
     // Wrapper for a std::variant containing token types
@@ -72,6 +83,7 @@ namespace Token {
             Return,
             Int, Void,
             OpenParen, CloseParen, OpenBrace, CloseBrace, Semicolon,
+            Negate, Decrement,
             Identifier, Constant
         > type;
 
@@ -97,19 +109,23 @@ namespace Token {
 
 
     using regexLookup = std::pair<std::regex, std::function<Token(std::smatch)>>;
+
     // Keywords must be lower down the array than patterns for this to work
-    static const std::array<regexLookup, 10> patterns {
+    // Update when add new token
+    static const std::array<regexLookup, 12> patterns {
         {
             {std::regex("^[a-zA-Z_]\\w*\\b"), [](const auto& m) { return tokenFactory(Identifier{}, m); }},
             {std::regex("^[0-9]+\\b"),        [](const auto& m) { return tokenFactory(Constant{}, m); }},
             {std::regex("^int\\b"),           [](const auto&)   { return tokenFactory(Int{}); }},
             {std::regex("^void\\b"),          [](const auto&)   { return tokenFactory(Void{}); }},
-            {std::regex("^return\\b"),        [](const auto&)   { return tokenFactory(Return{});}},
+            {std::regex("^return\\b"),        [](const auto&)   { return tokenFactory(Return{}); }},
             {std::regex("^\\("),              [](const auto&)   { return tokenFactory(OpenParen{}); }},
-            {std::regex("^\\)"),              [](const auto&)   { return tokenFactory(CloseParen{});}},
+            {std::regex("^\\)"),              [](const auto&)   { return tokenFactory(CloseParen{}); }},
             {std::regex("^\\{"),              [](const auto&)   { return tokenFactory(OpenBrace{}); }},
-            {std::regex("^\\}"),              [](const auto&)   { return tokenFactory(CloseBrace{});}},
-            {std::regex("^;"),                [](const auto&)   { return tokenFactory(Semicolon{});}}
+            {std::regex("^\\}"),              [](const auto&)   { return tokenFactory(CloseBrace{}); }},
+            {std::regex("^;"),                [](const auto&)   { return tokenFactory(Semicolon{}); }},
+            {std::regex("^--"),               [](const auto&)   { return tokenFactory(Decrement{}); }},
+            {std::regex("^-"),                [](const auto&)   { return tokenFactory(Negate{}); }}
         }};
 }
 
@@ -123,6 +139,8 @@ namespace Visitor {
     template<class... Ts>
     Overloaded(Ts...) -> Overloaded<Ts...>;
 
+    // function to get the name of the struct held in a Token::Token std::variant
+    // Update when add new token
     inline const std::string& getStructName(Token::Token& token) {
         return std::visit(Overloaded{
             [](Token::Return& ret) -> const std::string&     { return Token::returnString; },
@@ -135,6 +153,8 @@ namespace Visitor {
             [](Token::Semicolon& ret) -> const std::string&  { return Token::semicolonString; },
             [](Token::Identifier& ret) -> const std::string& { return Token::identifierString; },
             [](Token::Constant& ret) -> const std::string&   { return Token::constantString; },
+            [](Token::Decrement& ret) -> const std::string&  { return Token::decrementString; },
+            [](Token::Negate& ret) -> const std::string&     { return Token::negateString; }
         }, token.type);
     }
 

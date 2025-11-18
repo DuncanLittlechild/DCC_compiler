@@ -3,6 +3,7 @@
 //
 
 #include "parser.h"
+#include <type_traits>
 
 // Implements recursive descent parsing
 namespace Parser {
@@ -17,6 +18,8 @@ namespace Parser {
 
 		int index() const { return m_index; }
 		void setIndex(int index) { m_index = index; }
+
+		const std::vector<Token::Token>& vectorRef() const { return m_vectorRef; }
 
 		int size() const { return static_cast<int>(std::ssize(m_vectorRef)); }
 
@@ -61,6 +64,10 @@ namespace Parser {
 			return m_vectorRef[index];
 		}
 
+		Token::Token& peekCurrent() const {
+			return m_vectorRef[m_index];
+		}
+
 		Token::Token& takeCurrent() {
 			Token::Token& tmp{m_vectorRef[m_index]};
 			++m_index;
@@ -78,19 +85,36 @@ namespace Parser {
 		return actual;
 	}
 
+	std::unique_ptr<Ast::UnaryOperator> parseUnaryOperator (auto& constantToken) {
+
+	}
+
+	std::unique_ptr<Ast::OperatorConstant> parseOperatorConstant(auto& constantToken, VectorAndIterator& tokens) {
+		auto unop {parseUnaryOperator(constantToken)};
+	}
+
 	// Parse Integer values and return a pointer
 	std::unique_ptr<Ast::IntConstant> parseIntConstant (Token::Token& token) {
 		// Get the value stored in the token
 		int tokenValue {std::get<Token::Constant>(token.type).value};
 
 		// Make it a unique pointer and return it
-		return std::make_unique<Ast::IntConstant>(Token::intString, tokenValue);
+		return std::make_unique<Ast::IntConstant>(tokenValue);
 	}
 
 	std::unique_ptr<Ast::Constant> parseConstant(VectorAndIterator& tokens) {
+		auto& tmp {tokens.takeCurrent()};
+		if (std::is_same< == Token::OpenParen) {
+
+		}
 		//Check that token contains Token::Constant - if not, throw an error
 		// If it does, return the current token
 		auto& constantToken {expect(Token::constantString, tokens)};
+
+		// Work out what Constant subtype the constantToken is
+		if (Visitor::getStructName(constantToken) == Token::negateString) {
+			return parseOperatorConstant(constantToken, tokens);
+		};
 
 		// Return a unique pointer to an IntConstant Object
 		return parseIntConstant(constantToken);
@@ -106,12 +130,19 @@ namespace Parser {
 		return std::make_unique<Ast::KeywordStatement>(keyword, std::move(returnValuePtr));
 	}
 
+	// Helper function to select the correct type of statement
 	std::unique_ptr<Ast::Statement> parseStatement(VectorAndIterator& tokens) {
-		// Check that token contains Token::Return - if not, throw an error
-		expect(Token::returnString, tokens);
+		std::unique_ptr<Ast::Statement> tmp;
+		auto& currentStructName {Visitor::getStructName(tokens.takeCurrent())};
+		// If the name of the struct is in keywordStringPtrs, then parse as a keywordStatement
+		if (Token::isKeyword(currentStructName)) {
+			tmp = parseKeywordStatement(currentStructName, tokens);
+		} else {
+			throw std::invalid_argument(currentStructName + "is not a recognised keyword");
+		}
 
 		// return a unique pointer to a statement object
-		return parseKeywordStatement(Token::returnString, tokens);
+		return tmp;
 	}
 
 	std::unique_ptr<Ast::Identifier> parseIdentifier(VectorAndIterator& tokens) {

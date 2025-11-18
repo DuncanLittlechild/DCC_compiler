@@ -38,10 +38,17 @@ namespace AssemblyGenerator {
         std::vector<std::unique_ptr<AAst::Instruction>> instructions;
         // If the type of the current statement is return, return a mov and ret instruction
         // TODO: add a check, as I don't think there should be anything left after a return
-        if (statement.type() == Token::returnString) {
-            instructions.push_back(parseMovInstruction(dynamic_cast<Ast::KeywordStatement&>(statement).constant()));
-            instructions.push_back(parseRetInstruction());
+        if (statement.type() == Ast::KeywordStatementT) {
+            // Dynamic cast to get access to the .keyword() method
+            const std::string& keyword {dynamic_cast<Ast::KeywordStatement&>(statement).keyword()};
+            if (keyword == Token::returnString) {
+                // Append an instruction to move the result into the return register
+                instructions.push_back(parseMovInstruction(dynamic_cast<Ast::KeywordStatement&>(statement).constant()));
+                // Append the return command
+                instructions.push_back(parseRetInstruction());
+            }
         }
+
         return instructions;
     }
 

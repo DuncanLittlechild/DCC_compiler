@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #include "assembly_emitter.h"
 
@@ -34,7 +35,9 @@ namespace AssemblyEmitter {
                     break;
 
                 default:
-                    throw std::runtime_error("Instruction type " + AAst::nodeTypeStrings[instruction->type()] + " is not supported");
+                    std::stringstream errorMessage {};
+                    errorMessage << "Instruction Type: " << AAst::nodeTypeStrings[instruction->type()] << " is not supported";
+                    throw std::runtime_error(errorMessage.str());
             }
 
             outputFile << "\n";

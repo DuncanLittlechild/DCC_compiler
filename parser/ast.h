@@ -12,100 +12,135 @@
 // Holds the structure for the classes that make up the abstract syntax tree
 namespace Ast {
 
-	// Forward declarations of all classes
-	// Serves as an index of classes for easier reading
-	// Inherits directly from Ast
-	class Ast;
-	class Program;
-	class Function;
-	class Statement;
-	class Constant;
-	class Identifier;
+	// Enum used to identify the type of each node
+	enum NodeType {
+		AstT,
+		ProgramT,
+		FunctionT,
+		StatementT,
+		ConstantT,
+		IdentifierT,
+		IntConstantT,
+		KeywordStatementT,
+		OperatorConstantT,
+		OperatorT,
+		UnaryOperatorT,
+		maxNodeType
+	};
 
-	// represents integers, inherits from constant
-	class IntConstant;
+	// Allows iterating over the different types of node
+	constexpr std::array<NodeType, maxNodeType> nodeTypes {AstT, ProgramT, FunctionT, StatementT, ConstantT, IdentifierT,
+		IntConstantT, KeywordStatementT, OperatorConstantT, OperatorT, UnaryOperatorT};
+	static_assert(std::size(nodeTypes) == maxNodeType && "Ast::nodeTypes does not match Ast::nodeTypes");
 
-	class ReturnStatement;
+	// Allows getting the strings associated with a particular enum
+	constexpr std::array<std::string_view, maxNodeType> nodeTypeStrings {"Ast", " Program", "Function", "Statement", "Constant", "Identifier",
+		"IntConstant", "KeywordStatement", "OperatorConstant", "Operator", "UnaryOperator"};
+	static_assert(std::size(nodeTypeStrings) == maxNodeType && "Ast::nodeTypeString does not match Ast::maxNodeType");
 
 	class Ast {
 	public:
-		virtual std::string identify() const = 0;
-
-		friend std::ostream& operator<<(std::ostream& out, const Ast& ast) {
-			out << ast.identify();
-			return out;
-		};
-
 		virtual ~Ast() = default;
+
+		virtual const std::string_view identify() {
+			return nodeTypeStrings[this->type()];
+		}
+
+		// Returns the nodeType of the class
+		virtual const NodeType type() const = 0;
 	};
 
-	// Base class to derive from
-	// m_type is used to work out which derived class to dynamic_cast to
-	class Constant : public Ast {
-		std::string m_type;
+	// Base class to represent unary operators
+	class Operator : public Ast {
+		const std::string& m_operator;
 	public:
-		Constant(std::string& type)
-			: m_type{type}
-		{};
+		Operator() = delete;
+		Operator(const std::string& op)
+			: m_operator{op}
+		{}
 
-		const std::string& type() const { return m_type; }
-		std::string getType() const { return m_type; }
+		const NodeType type() const override { return OperatorT; }
 	};
 
+	// Represents and stores the data for unary operators
+	// Inherits the m_operator method from it's parent
+	class UnaryOperator : public Operator {
+	public:
+		UnaryOperator() = delete;
+		UnaryOperator(const std::string& op)
+			: Operator{op}
+		{}
+
+		const NodeType type() const override { return UnaryOperatorT; }
+	};
+
+	// Base class to derive constants from
+	// These are basically just wrappers for constant values
+	// Note that constant here means expressions that can be collated to make a single output, eg 5 + 6 is a constant
+	class Constant : public Ast {
+	public:
+		const NodeType type() const override { return ConstantT; }
+	};
+
+	// Leaf integer constant class
 	class IntConstant : public Constant {
 		int m_value{};
 	public:
-		explicit IntConstant(std::string type,const int& value)
-			: Constant{type}
-			, m_value{value} {};
-
-		std::string identify() const override {
-			return "Constant(" + std::to_string(m_value) + ")";
-		};
+		explicit IntConstant(const int& value)
+			: m_value{value} {};
 
 		int value() const { return m_value; }
+
+		const NodeType type() const override { return IntConstantT; }
 	};
 
+	// A unary operator and another constant
+	// As unary operators can be chained, this can be nested an arbitrary number of times
+	class OperatorConstant : public Constant {
+		std::unique_ptr<Operator> m_unop{};
+		std::unique_ptr<Constant> m_constant{};
+	public:
+		const NodeType type() const override { return OperatorConstantT; }
+	};
+
+	// The string used to identify a funciton or a variable
 	class Identifier : public Ast {
 		const std::string m_name;
 	public:
-		explicit Identifier(const std::string& name): m_name{name} {};
-		std::string identify() const override {
-			return '"' + m_name + '"';
-		};
+		explicit Identifier(const std::string& name)
+			: m_name{name}
+		{};
 
 		std::string name() const { return m_name; }
+
+		const NodeType type() const override { return IdentifierT; }
 	};
 
 	// Base class to inherit statements from
-	// m_type allows the derived type to be identified
 	class Statement : public Ast {
-		std::string m_type;
 	public:
-		explicit Statement(const std::string& type): m_type{type} {};
-
-		const std::string& type() const { return m_type; }
-		std::string getType() const { return m_type; }
+		const NodeType type() const override { return StatementT; }
 	};
 
 	// Class for simple statements such as return 5
-	// The keyword used will be from a limited list
+	// The keyword used will be taken from those in the Tokens file
 	class KeywordStatement : public Statement {
+		const std::string& m_keyword;
 		std::unique_ptr<Constant> m_constant{};
 	public:
 		KeywordStatement() = delete;
 		KeywordStatement(const std::string& keyword, std::unique_ptr<Constant>&& constant)
-			: Statement{keyword}
+			: m_keyword{keyword}
 			, m_constant{std::move(constant)}
 		{}
 
-		[[nodiscard]] std::string identify() const override {
-			return this->type() + "(\n\t\t\t" + m_constant->identify() + "\t\t\n)";
-		}
-
+		const std::string& keyword() const { return m_keyword; }
 		const Constant& constant() const { return *m_constant; }
+
+		const NodeType type() const override { return KeywordStatementT; }
 	};
 
+	// The identifier string and main statement of a function
 	class Function : public Ast {
 		std::unique_ptr<Identifier> m_identifier;
 		std::unique_ptr<Statement> m_statement;
@@ -115,12 +150,10 @@ namespace Ast {
 		: m_identifier{std::move(identifier)}
 		, m_statement{std::move(statement)} {}
 
-		[[nodiscard]] std::string identify() const override {
-			return "Function(\n\t\tname = " + m_identifier->identify() + "\n\t\tbody = " + m_statement->identify() + "\n\t)";
-		}
-
 		const Identifier& identifier() const { return *m_identifier; }
 		Statement& statement() const { return *m_statement; }
+
+		const NodeType type() const override { return FunctionT; }
 	};
 
 	// Holds an abstract syntax tree for a whole program
@@ -128,13 +161,13 @@ namespace Ast {
 		std::unique_ptr<Function> m_function;
 	public:
 		Program() = default;
-		explicit Program(std::unique_ptr<Function>&& function): m_function{std::move(function)} {}
-
-		[[nodiscard]] std::string identify() const override {
-			return "Program(\n\t" + m_function->identify() + "\n)";
-		}
+		explicit Program(std::unique_ptr<Function>&& function)
+			: m_function{std::move(function)}
+		{}
 
 		const Function& function() const { return *m_function; }
+
+		const NodeType type() const override { return ProgramT; }
 	};
 }
 #endif //DCC_AST_H

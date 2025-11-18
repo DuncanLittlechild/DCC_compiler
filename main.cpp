@@ -127,8 +127,6 @@ int main(const int argc, char* argv[]) {
         return 1;
     }
 
-    std::cout << abstractSyntaxTree;
-
     if (stopCode == g_stopAtParseCode) {
         std::cout << "Stopped at parser";
         return 0;
