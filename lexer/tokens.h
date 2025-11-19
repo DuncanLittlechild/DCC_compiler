@@ -36,7 +36,7 @@ namespace Token {
     constexpr std::array<const std::string*, 3> keywordStringPtrs {&returnString, &intString, &voidString};
     // Helper to identify if something is a keyword
     bool isKeyword(const std::string& keyword) {
-        return !(std::find(keywordStringPtrs.begin(), keywordStringPtrs.end(), &keyword) == keywordStringPtrs.end());
+        return std::find(keywordStringPtrs.begin(), keywordStringPtrs.end(), &keyword) != keywordStringPtrs.end();
     }
 
     // Punctuation
@@ -58,6 +58,10 @@ namespace Token {
     static constexpr std::string decrementString {"--"};
     struct Bitwisenot : Base {};
     static constexpr std::string bitwisenotString {"~"};
+    constexpr std::array<const std::string*, 3> unaryOperatorStringPtrs {&negateString, &decrementString, &bitwisenotString};
+    bool isUnaryOperator(const std::string& unop){
+        return std::find(unaryOperatorStringPtrs.begin(), unaryOperatorStringPtrs.end(), &unop) != unaryOperatorStringPtrs.end();
+    }
 
     // Non-empty structs
     // Function/ variable identifier
@@ -165,3 +169,4 @@ namespace Visitor {
 }
 
 #endif //DCC_TOKENS_H
+
