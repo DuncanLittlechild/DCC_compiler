@@ -56,6 +56,8 @@ namespace Token {
     static constexpr std::string negateString {"-"};
     struct Decrement : Base {};
     static constexpr std::string decrementString {"--"};
+    struct Bitwisenot : Base {};
+    static constexpr std::string bitwisenotString {"~"};
 
     // Non-empty structs
     // Function/ variable identifier
@@ -83,7 +85,7 @@ namespace Token {
             Return,
             Int, Void,
             OpenParen, CloseParen, OpenBrace, CloseBrace, Semicolon,
-            Negate, Decrement,
+            Negate, Decrement, Bitwisenot,
             Identifier, Constant
         > type;
 
@@ -125,7 +127,8 @@ namespace Token {
             {std::regex("^\\}"),              [](const auto&)   { return tokenFactory(CloseBrace{}); }},
             {std::regex("^;"),                [](const auto&)   { return tokenFactory(Semicolon{}); }},
             {std::regex("^--"),               [](const auto&)   { return tokenFactory(Decrement{}); }},
-            {std::regex("^-"),                [](const auto&)   { return tokenFactory(Negate{}); }}
+            {std::regex("^-"),                [](const auto&)   { return tokenFactory(Negate{}); }},
+            {std::regex("^~"),                [](const auto&)   { return tokenFactory(Bitwisenot{}); }}
         }};
 }
 
@@ -154,9 +157,11 @@ namespace Visitor {
             [](Token::Identifier& ret) -> const std::string& { return Token::identifierString; },
             [](Token::Constant& ret) -> const std::string&   { return Token::constantString; },
             [](Token::Decrement& ret) -> const std::string&  { return Token::decrementString; },
-            [](Token::Negate& ret) -> const std::string&     { return Token::negateString; }
+            [](Token::Negate& ret) -> const std::string&     { return Token::negateString; },
+            [](Token::Bitwisenot& ret) -> const std::string& { return Token::bitwisenotString; }
         }, token.type);
     }
 
 }
+
 #endif //DCC_TOKENS_H
