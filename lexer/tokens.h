@@ -58,7 +58,7 @@ namespace Token {
     static constexpr std::string decrementString {"--"};
     struct Bitwisenot : Base {};
     static constexpr std::string bitwisenotString {"~"};
-    constexpr std::array<const std::string*, 3> unaryOperatorStringPtrs {&negateString, &decrementString, &bitwisenotString};
+    constexpr std::array<const std::string*, 2> unaryOperatorStringPtrs {&negateString, &bitwisenotString};
     bool isUnaryOperator(const std::string& unop){
         return std::find(unaryOperatorStringPtrs.begin(), unaryOperatorStringPtrs.end(), &unop) != unaryOperatorStringPtrs.end();
     }
@@ -169,4 +169,5 @@ namespace Visitor {
 }
 
 #endif //DCC_TOKENS_H
+
 
