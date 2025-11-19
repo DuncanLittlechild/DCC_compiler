@@ -85,12 +85,28 @@ namespace Parser {
 		return actual;
 	}
 
-	std::unique_ptr<Ast::UnaryOperator> parseUnaryOperator (auto& constantToken) {
 
+	std::unique_ptr<Ast::Identifier> parseIdentifier(VectorAndIterator& tokens) {
+		// Check that the token is an identifier
+		auto& id {expect(Token::identifierString, tokens)};
+
+		// Get the identifier string
+		std::string& identifier {std::get<Token::Identifier>(id.type).name};
+
+		//return a pointer to an identifier object
+		return std::make_unique<Ast::Identifier>(identifier);
 	}
 
-	std::unique_ptr<Ast::OperatorConstant> parseOperatorConstant(auto& constantToken, VectorAndIterator& tokens) {
-		auto unop {parseUnaryOperator(constantToken)};
+	std::unique_ptr<Ast::UnaryOperator> parseUnaryOperator (auto& constantToken) {
+		return std::make_unique<Ast::UnaryOperator>(currentTokenName);
+	}
+
+	// Construct the unary operator constant
+	// This can be nested an arbitrary number of times
+	std::unique_ptr<Ast::OperatorConstant> parseUnaryOperatorConstant(auto& currentTokenName, VectorAndIterator& tokens) {
+		auto unop {parseUnaryOperator(currentTokenName)};
+		auto constant{parseConstant(tokens)};
+		return std::make_unique<Ast::OperatorConstant>(std::move(unop), std::move(constant);
 	}
 
 	// Parse Integer values and return a pointer
@@ -102,58 +118,56 @@ namespace Parser {
 		return std::make_unique<Ast::IntConstant>(tokenValue);
 	}
 
+	// Helper to work out what type of cosntatn token to create
 	std::unique_ptr<Ast::Constant> parseConstant(VectorAndIterator& tokens) {
-		auto& tmp {tokens.takeCurrent()};
-		if (std::is_same< == Token::OpenParen) {
-
+		std::unique_ptr<Ast::Constant> constantNode;
+		
+		auto& currentToken {tokens.takeCurrent()};
+		auto& currentTokenName {Visitor::getStructName(currentToken)};
+		
+		// Go over the current token and choose the appropriate constant to generate
+		if (currentTokenName == Token::openParenString) {
+`			constantNode = parseConstant(tokens);
+			expect(Token::closeParenString, tokens);
+		} else if (currentTokenName == Token::constantString) {
+			constantNode = parseIntConstant(currentToken);
+		} else if (Token::isUnaryOperator(currentTokenName)){
+			constantNode = parseUnaryOperatorConstant(currentTokenName, tokens);
+		} else {
+			throw std::invalid_argument(currentTokenName + "is not a recognised constant");
 		}
-		//Check that token contains Token::Constant - if not, throw an error
-		// If it does, return the current token
-		auto& constantToken {expect(Token::constantString, tokens)};
 
-		// Work out what Constant subtype the constantToken is
-		if (Visitor::getStructName(constantToken) == Token::negateString) {
-			return parseOperatorConstant(constantToken, tokens);
-		};
-
-		// Return a unique pointer to an IntConstant Object
-		return parseIntConstant(constantToken);
+		// Return a unique pointer to a constant Object
+		return constantNode;
 	}
 
 	std::unique_ptr<Ast::KeywordStatement> parseKeywordStatement (const std::string& keyword, VectorAndIterator& tokens) {
 		// Get the return value
-		auto returnValuePtr {parseConstant(tokens)};
+		auto value {parseConstant(tokens)};
+
+		return std::make_unique<Ast::KeywordStatement>(keyword, std::move(value));
+	}
+
+	// Statements are complete lines that come before semicolons in C
+	// Helper function to select the correct type of statement
+	std::unique_ptr<Ast::Statement> parseStatement(VectorAndIterator& tokens) {
+		std::unique_ptr<Ast::Statement> statementNode;
+		
+		Token::Token& currentToken {tokens.takeCurrent()};
+		auto& currentTokenName {Visitor::getStructName(currentToken)};
+		
+		// Determine the subfunciton to pass the current token to
+		if (Token::isKeyword(currentTokenName)) {
+			statementNode = parseKeywordStatement(currentTokenName, tokens);
+		} else {
+			throw std::invalid_argument(currentTokenName + "is not a recognised keyword");
+		}
 
 		// Check the statement ends with a semicolon token
 		expect(Token::semicolonString, tokens);
 
-		return std::make_unique<Ast::KeywordStatement>(keyword, std::move(returnValuePtr));
-	}
-
-	// Helper function to select the correct type of statement
-	std::unique_ptr<Ast::Statement> parseStatement(VectorAndIterator& tokens) {
-		std::unique_ptr<Ast::Statement> tmp;
-		auto& currentStructName {Visitor::getStructName(tokens.takeCurrent())};
-		// If the name of the struct is in keywordStringPtrs, then parse as a keywordStatement
-		if (Token::isKeyword(currentStructName)) {
-			tmp = parseKeywordStatement(currentStructName, tokens);
-		} else {
-			throw std::invalid_argument(currentStructName + "is not a recognised keyword");
-		}
-
 		// return a unique pointer to a statement object
-		return tmp;
-	}
-
-	std::unique_ptr<Ast::Identifier> parseIdentifier(VectorAndIterator& tokens) {
-		// Check that the token is an identifier
-		auto& id {expect(Token::identifierString, tokens)};
-
-		// Get the identifier string
-		std::string& identifier {std::get<Token::Identifier>(id.type).name};
-
-		//return a pointer to an identifier object
-		return std::make_unique<Ast::Identifier>(identifier);
+		return statementNode;
 	}
 
 	std::unique_ptr<Ast::Function> parseFunction(VectorAndIterator& tokens) {
@@ -185,4 +199,5 @@ namespace Parser {
 		}
 		return tmp;
 	}
+
 }
