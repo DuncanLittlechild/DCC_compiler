@@ -15,4 +15,5 @@ add_executable(dcc main.cpp
         assembly_generator/assembly_generator.h
         assembly_emitter/assembly_emitter.cpp
         assembly_emitter/assembly_emitter.h
+        tacky/tacky.h
 )

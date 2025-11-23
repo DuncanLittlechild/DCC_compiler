@@ -18,15 +18,16 @@ namespace Parser {
 
 	std::unique_ptr<Ast::UnaryOperator> parseUnaryOperator (auto& constantToken);
 
-	// Construct the unary operator constant
-	// This can be nested an arbitrary number of times
-	std::unique_ptr<Ast::OperatorConstant> parseUnaryOperatorConstant(auto& currentTokenName, VectorAndIterator& tokens);
-
 	// Parse Integer values and return a pointer
 	std::unique_ptr<Ast::IntConstant> parseIntConstant (Token::Token& token);
+	std::unique_ptr<Ast::ConstantExpression> parseConstantExpression(auto& currentToken);
 
-	// Helper to work out what type of cosntatn token to create
-	std::unique_ptr<Ast::Constant> parseConstant(VectorAndIterator& tokens);
+	// Construct the unary operator constant
+	// This can be nested an arbitrary number of times
+	std::unique_ptr<Ast::OperatorExpression> parseOperatorExpression(auto& currentTokenName, VectorAndIterator& tokens);
+
+	// Helper to work out what type of expression token to create
+	std::unique_ptr<Ast::Expression> parseExpression(VectorAndIterator& tokens);
 
 	std::unique_ptr<Ast::KeywordStatement> parseKeywordStatement (const std::string& keyword, VectorAndIterator& tokens);
 

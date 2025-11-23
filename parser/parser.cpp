@@ -98,15 +98,7 @@ namespace Parser {
 	}
 
 	std::unique_ptr<Ast::UnaryOperator> parseUnaryOperator (auto& constantToken) {
-		return std::make_unique<Ast::UnaryOperator>(currentTokenName);
-	}
-
-	// Construct the unary operator constant
-	// This can be nested an arbitrary number of times
-	std::unique_ptr<Ast::OperatorConstant> parseUnaryOperatorConstant(auto& currentTokenName, VectorAndIterator& tokens) {
-		auto unop {parseUnaryOperator(currentTokenName)};
-		auto constant{parseConstant(tokens)};
-		return std::make_unique<Ast::OperatorConstant>(std::move(unop), std::move(constant);
+		return std::make_unique<Ast::UnaryOperator>(constantToken);
 	}
 
 	// Parse Integer values and return a pointer
@@ -118,32 +110,45 @@ namespace Parser {
 		return std::make_unique<Ast::IntConstant>(tokenValue);
 	}
 
-	// Helper to work out what type of cosntatn token to create
-	std::unique_ptr<Ast::Constant> parseConstant(VectorAndIterator& tokens) {
-		std::unique_ptr<Ast::Constant> constantNode;
-		
+	std::unique_ptr<Ast::ConstantExpression> parseConstantExpression(auto& currentToken) {
+		return std::make_unique<Ast::ConstantExpression>(parseIntConstant(currentToken));
+	}
+
+
+	// Construct the unary operator constant
+	// This can be nested an arbitrary number of times
+	std::unique_ptr<Ast::OperatorExpression> parseOperatorExpression(auto& currentTokenName, VectorAndIterator& tokens) {
+		auto unop {parseUnaryOperator(currentTokenName)};
+		auto constant{parseExpression(tokens)};
+		return std::make_unique<Ast::OperatorExpression>(std::move(unop), std::move(constant));
+	}
+
+	// Helper to work out what type of expression token to create
+	std::unique_ptr<Ast::Expression> parseExpression(VectorAndIterator& tokens) {
+		std::unique_ptr<Ast::Expression> expressionNode;
+
 		auto& currentToken {tokens.takeCurrent()};
 		auto& currentTokenName {Visitor::getStructName(currentToken)};
-		
+
 		// Go over the current token and choose the appropriate constant to generate
 		if (currentTokenName == Token::openParenString) {
-`			constantNode = parseConstant(tokens);
+			expressionNode = parseExpression(tokens);
 			expect(Token::closeParenString, tokens);
 		} else if (currentTokenName == Token::constantString) {
-			constantNode = parseIntConstant(currentToken);
+			expressionNode = parseConstantExpression(currentToken);
 		} else if (Token::isUnaryOperator(currentTokenName)){
-			constantNode = parseUnaryOperatorConstant(currentTokenName, tokens);
+			expressionNode = parseOperatorExpression(currentTokenName, tokens);
 		} else {
 			throw std::invalid_argument(currentTokenName + "is not a recognised constant");
 		}
 
 		// Return a unique pointer to a constant Object
-		return constantNode;
+		return expressionNode;
 	}
 
 	std::unique_ptr<Ast::KeywordStatement> parseKeywordStatement (const std::string& keyword, VectorAndIterator& tokens) {
 		// Get the return value
-		auto value {parseConstant(tokens)};
+		auto value {parseExpression(tokens)};
 
 		return std::make_unique<Ast::KeywordStatement>(keyword, std::move(value));
 	}

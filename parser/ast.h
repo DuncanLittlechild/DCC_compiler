@@ -18,24 +18,26 @@ namespace Ast {
 		ProgramT,
 		FunctionT,
 		StatementT,
+		ExpressionT,
+		ConstantExpressionT,
+		OperatorExpressionT,
 		ConstantT,
 		IdentifierT,
 		IntConstantT,
 		KeywordStatementT,
-		OperatorConstantT,
 		OperatorT,
 		UnaryOperatorT,
 		maxNodeType
 	};
 
 	// Allows iterating over the different types of node
-	constexpr std::array<NodeType, maxNodeType> nodeTypes {AstT, ProgramT, FunctionT, StatementT, ConstantT, IdentifierT,
-		IntConstantT, KeywordStatementT, OperatorConstantT, OperatorT, UnaryOperatorT};
+	constexpr std::array<NodeType, maxNodeType> nodeTypes {AstT, ProgramT, FunctionT, StatementT, ExpressionT,
+		ConstantExpressionT, ConstantT, IdentifierT, IntConstantT, KeywordStatementT, OperatorT, UnaryOperatorT};
 	static_assert(std::size(nodeTypes) == maxNodeType && "Ast::nodeTypes does not match Ast::nodeTypes");
 
 	// Allows getting the strings associated with a particular enum
-	constexpr std::array<std::string_view, maxNodeType> nodeTypeStrings {"Ast", " Program", "Function", "Statement", "Constant", "Identifier",
-		"IntConstant", "KeywordStatement", "OperatorConstant", "Operator", "UnaryOperator"};
+	constexpr std::array<std::string_view, maxNodeType> nodeTypeStrings {"Ast", " Program", "Function", "Statement", "Expression"
+		"ConstantExpression", "OperatorExpression", "Constant", "Identifier", "IntConstant", "KeywordStatement", "Operator", "UnaryOperator"};
 	static_assert(std::size(nodeTypeStrings) == maxNodeType && "Ast::nodeTypeString does not match Ast::maxNodeType");
 
 	class Ast {
@@ -50,6 +52,10 @@ namespace Ast {
 		virtual const NodeType type() const = 0;
 	};
 
+	/////////////////
+	/// Operators ///
+	/////////////////
+
 	// Base class to represent unary operators
 	class Operator : public Ast {
 		const std::string& m_operator;
@@ -63,7 +69,7 @@ namespace Ast {
 	};
 
 	// Represents and stores the data for unary operators
-	// Inherits the m_operator method from it's parent
+	// Inherits the m_operator member from it's parent
 	class UnaryOperator : public Operator {
 	public:
 		UnaryOperator() = delete;
@@ -73,6 +79,10 @@ namespace Ast {
 
 		const NodeType type() const override { return UnaryOperatorT; }
 	};
+
+	//////////////////
+	/// Constants ///
+	/////////////////
 
 	// Base class to derive constants from
 	// These are basically just wrappers for constant values
@@ -94,14 +104,10 @@ namespace Ast {
 		const NodeType type() const override { return IntConstantT; }
 	};
 
-	// A unary operator and another constant
-	// As unary operators can be chained, this can be nested an arbitrary number of times
-	class OperatorConstant : public Constant {
-		std::unique_ptr<Operator> m_unop{};
-		std::unique_ptr<Constant> m_constant{};
-	public:
-		const NodeType type() const override { return OperatorConstantT; }
-	};
+
+	///////////////////
+	/// Identifier ///
+	//////////////////
 
 	// The string used to identify a funciton or a variable
 	class Identifier : public Ast {
@@ -111,10 +117,56 @@ namespace Ast {
 			: m_name{name}
 		{};
 
-		std::string name() const { return m_name; }
+		const std::string& name() const { return m_name; }
 
 		const NodeType type() const override { return IdentifierT; }
 	};
+
+
+	////////////////////
+	/// Expressions ///
+	///////////////////
+
+	// Class to hold expressions
+	class Expression : public Ast {
+	public:
+		const NodeType type() const override { return ExpressionT; }
+	};
+
+	// An expression that holds a particular constant
+	class ConstantExpression : public Expression {
+		std::unique_ptr<Constant> m_constant;
+	public:
+		explicit ConstantExpression(std::unique_ptr<Constant>&& constant)
+			: m_constant{std::move(constant)}
+		{}
+
+		const Constant& constant() const { return *m_constant;}
+
+		const NodeType type() const override { return ConstantExpressionT; }
+	};
+
+	// A unary operator and another expression
+	// As unary operators can be chained, this can be nested an arbitrary number of times
+	class OperatorExpression : public Expression {
+		std::unique_ptr<Operator> m_unop{};
+		std::unique_ptr<Expression> m_expression{};
+	public:
+		OperatorExpression(std::unique_ptr<Operator>&& unop, std::unique_ptr<Expression>&& expression)
+			: m_unop{std::move(unop)}
+			, m_expression{std::move(expression)}
+		{}
+
+		const Operator& unop() const { return *m_unop; }
+		const Expression& expression() const { return *m_expression; }
+
+		const NodeType type() const override { return OperatorExpressionT; }
+	};
+
+
+	///////////////////
+	/// Statements ///
+	//////////////////
 
 	// Base class to inherit statements from
 	class Statement : public Ast {
@@ -126,19 +178,24 @@ namespace Ast {
 	// The keyword used will be taken from those in the Tokens file
 	class KeywordStatement : public Statement {
 		const std::string& m_keyword;
-		std::unique_ptr<Constant> m_constant{};
+		std::unique_ptr<Expression> m_expression{};
 	public:
 		KeywordStatement() = delete;
-		KeywordStatement(const std::string& keyword, std::unique_ptr<Constant>&& constant)
+		KeywordStatement(const std::string& keyword, std::unique_ptr<Expression>&& expression)
 			: m_keyword{keyword}
-			, m_constant{std::move(constant)}
+			, m_expression{std::move(expression)}
 		{}
 
 		const std::string& keyword() const { return m_keyword; }
-		const Constant& constant() const { return *m_constant; }
+		const Expression& expression() const { return *m_expression; }
 
 		const NodeType type() const override { return KeywordStatementT; }
 	};
+
+
+	//////////////////
+	/// Functions ///
+	/////////////////
 
 	// The identifier string and main statement of a function
 	class Function : public Ast {
@@ -151,10 +208,15 @@ namespace Ast {
 		, m_statement{std::move(statement)} {}
 
 		const Identifier& identifier() const { return *m_identifier; }
-		Statement& statement() const { return *m_statement; }
+		const Statement& statement() const { return *m_statement; }
 
 		const NodeType type() const override { return FunctionT; }
 	};
+
+
+	/////////////////
+	/// Programs ///
+	////////////////
 
 	// Holds an abstract syntax tree for a whole program
 	class Program : public Ast {

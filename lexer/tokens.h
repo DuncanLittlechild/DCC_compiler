@@ -35,7 +35,7 @@ namespace Token {
     // Update when add new keyword
     constexpr std::array<const std::string*, 3> keywordStringPtrs {&returnString, &intString, &voidString};
     // Helper to identify if something is a keyword
-    bool isKeyword(const std::string& keyword) {
+    inline bool isKeyword(const std::string& keyword) {
         return std::find(keywordStringPtrs.begin(), keywordStringPtrs.end(), &keyword) != keywordStringPtrs.end();
     }
 
@@ -59,7 +59,7 @@ namespace Token {
     struct Bitwisenot : Base {};
     static constexpr std::string bitwisenotString {"~"};
     constexpr std::array<const std::string*, 2> unaryOperatorStringPtrs {&negateString, &bitwisenotString};
-    bool isUnaryOperator(const std::string& unop){
+    inline bool isUnaryOperator(const std::string& unop){
         return std::find(unaryOperatorStringPtrs.begin(), unaryOperatorStringPtrs.end(), &unop) != unaryOperatorStringPtrs.end();
     }
 
@@ -86,8 +86,7 @@ namespace Token {
     // Wrapper for a std::variant containing token types
     struct Token {
         std::variant<
-            Return,
-            Int, Void,
+            Return, Int, Void,
             OpenParen, CloseParen, OpenBrace, CloseBrace, Semicolon,
             Negate, Decrement, Bitwisenot,
             Identifier, Constant
@@ -118,7 +117,7 @@ namespace Token {
 
     // Keywords must be lower down the array than patterns for this to work
     // Update when add new token
-    static const std::array<regexLookup, 12> patterns {
+    static const std::array<regexLookup, 13> patterns {
         {
             {std::regex("^[a-zA-Z_]\\w*\\b"), [](const auto& m) { return tokenFactory(Identifier{}, m); }},
             {std::regex("^[0-9]+\\b"),        [](const auto& m) { return tokenFactory(Constant{}, m); }},
