@@ -97,8 +97,8 @@ namespace Parser {
 		return std::make_unique<Ast::Identifier>(identifier);
 	}
 
-	std::unique_ptr<Ast::UnaryOperator> parseUnaryOperator (auto& constantToken) {
-		return std::make_unique<Ast::UnaryOperator>(constantToken);
+	std::unique_ptr<Ast::UnaryOperator> parseUnaryOperator (auto& currentTokenName) {
+		return std::make_unique<Ast::UnaryOperator>(currentTokenName);
 	}
 
 	// Parse Integer values and return a pointer
@@ -110,17 +110,16 @@ namespace Parser {
 		return std::make_unique<Ast::IntConstant>(tokenValue);
 	}
 
-	std::unique_ptr<Ast::ConstantExpression> parseConstantExpression(auto& currentToken) {
-		return std::make_unique<Ast::ConstantExpression>(parseIntConstant(currentToken));
+	Ast::Expression parseConstantExpression(auto& currentToken) {
+		return Ast::ConstantExpression{parseIntConstant(currentToken)};
 	}
-
 
 	// Construct the unary operator constant
 	// This can be nested an arbitrary number of times
-	std::unique_ptr<Ast::OperatorExpression> parseOperatorExpression(auto& currentTokenName, VectorAndIterator& tokens) {
+	Ast::Expression parseOperatorExpression(auto& currentTokenName, VectorAndIterator& tokens) {
 		auto unop {parseUnaryOperator(currentTokenName)};
 		auto constant{parseExpression(tokens)};
-		return std::make_unique<Ast::OperatorExpression>(std::move(unop), std::move(constant));
+		return Ast::UnopExpression{std::move(unop), std::move(constant)};
 	}
 
 	// Helper to work out what type of expression token to create
@@ -135,9 +134,9 @@ namespace Parser {
 			expressionNode = parseExpression(tokens);
 			expect(Token::closeParenString, tokens);
 		} else if (currentTokenName == Token::constantString) {
-			expressionNode = parseConstantExpression(currentToken);
+			expressionNode = std::make_unique<Ast::Expression>(parseConstantExpression(currentToken));
 		} else if (Token::isUnaryOperator(currentTokenName)){
-			expressionNode = parseOperatorExpression(currentTokenName, tokens);
+			expressionNode = std::make_unique<Ast::Expression>(parseOperatorExpression(currentTokenName, tokens));
 		} else {
 			throw std::invalid_argument(currentTokenName + "is not a recognised constant");
 		}
@@ -146,11 +145,11 @@ namespace Parser {
 		return expressionNode;
 	}
 
-	std::unique_ptr<Ast::KeywordStatement> parseKeywordStatement (const std::string& keyword, VectorAndIterator& tokens) {
+	Ast::Statement parseKeywordStatement (const std::string& keyword, VectorAndIterator& tokens) {
 		// Get the return value
 		auto value {parseExpression(tokens)};
 
-		return std::make_unique<Ast::KeywordStatement>(keyword, std::move(value));
+		return Ast::KeywordStatement{keyword, std::move(value)};
 	}
 
 	// Statements are complete lines that come before semicolons in C
@@ -163,7 +162,7 @@ namespace Parser {
 		
 		// Determine the subfunciton to pass the current token to
 		if (Token::isKeyword(currentTokenName)) {
-			statementNode = parseKeywordStatement(currentTokenName, tokens);
+			statementNode = std::make_unique<Ast::Statement>(parseKeywordStatement(currentTokenName, tokens));
 		} else {
 			throw std::invalid_argument(currentTokenName + "is not a recognised keyword");
 		}

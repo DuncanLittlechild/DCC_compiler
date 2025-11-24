@@ -7,7 +7,7 @@
 
 namespace AssemblyGenerator {
 
-    std::unique_ptr<AAst::RegisterOperand> parseRegisterOperand(const Ast::Constant& constant) {
+    std::unique_ptr<AAst::RegisterOperand> parseRegisterOperand(const Ast::Expression& constant) {
         return std::make_unique<AAst::RegisterOperand>("%EAX");
     }
 
@@ -16,8 +16,8 @@ namespace AssemblyGenerator {
     }
 
     // works out the operand to return, then creates and returns it
-    std::unique_ptr<AAst::Operand> parseOperand(const Ast::Constant& constant) {
-        return parseImmOperand(dynamic_cast<const Ast::IntConstant&>(constant).value());
+    std::unique_ptr<AAst::Operand> parseOperand(const Ast::Expression& constant) {
+        return parseImmOperand(std::get<Ast::IntConstant>(constant).value());
     }
 
     std::unique_ptr<AAst::RetInstruction> parseRetInstruction() {
@@ -26,7 +26,7 @@ namespace AssemblyGenerator {
 
     // Works out what is being moved, then where it needs to be moved to
     // Constructs a pointer using those two values
-    std::unique_ptr<AAst::MovInstruction> parseMovInstruction(const Ast::Constant& constant) {
+    std::unique_ptr<AAst::MovInstruction> parseMovInstruction(const Ast::Expression& constant) {
         auto toMove {parseOperand(constant)};
         auto destination {parseRegisterOperand(constant)};
         return std::make_unique<AAst::MovInstruction>(std::move(toMove), std::move(destination));
@@ -38,17 +38,17 @@ namespace AssemblyGenerator {
         std::vector<std::unique_ptr<AAst::Instruction>> instructions;
         // If the type of the current statement is return, return a mov and ret instruction
         // TODO: add a check, as I don't think there should be anything left after a return
-        if (statement.type() == Ast::KeywordStatementT) {
+        Ast::NodeType type {std::visit(Ast::GetStatementType{}, statement)};
+        if (type == Ast::KeywordStatementT) {
             // Dynamic cast to get access to the .keyword() method
-            const std::string& keyword {dynamic_cast<Ast::KeywordStatement&>(statement).keyword()};
+            const std::string& keyword {std::get<Ast::KeywordStatement>(statement).keyword()};
             if (keyword == Token::returnString) {
                 // Append an instruction to move the result into the return register
-                instructions.push_back(parseMovInstruction(dynamic_cast<Ast::KeywordStatement&>(statement).constant()));
+                instructions.push_back(parseMovInstruction(std::get<Ast::KeywordStatement>(statement).expression()));
                 // Append the return command
                 instructions.push_back(parseRetInstruction());
             }
         }
-
         return instructions;
     }
 

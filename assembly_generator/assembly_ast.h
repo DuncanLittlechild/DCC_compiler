@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <array>
+#include <variant>
 
 namespace AAst {
 
@@ -33,45 +34,53 @@ namespace AAst {
 	class Program;
 	class Function;
 	class Identifier;
-	class Instruction;
-	class Operand;
 
 	class MovInstruction;
 	class RetInstruction;
+	class UnopInstruction;
+	class StackallocInstruction;
 
 	class ImmOperand;
 	class RegisterOperand;
+	class UnopOperand;
+	class PseudoOperand;
+	class StackOperand;
 
 	// identify to get the string
 	// <<operator as friend
 	// virtual destructor
 	class Ast {
-		NodeType m_nodeType {AstT};
 	public:
 		virtual ~Ast() = default;
-
-		friend std::ostream& operator<<(std::ostream& out, const Ast& ast) {
-			out << ast.identify();
-			return out;
-		}
-
-		virtual const std::string& identify() const {
-			return nodeTypeStrings[this->type()];
-		}
-
-		virtual const NodeType type() const = 0;
 	};
 
-	// Base class from which to derive types of Operand
-	class Operand : public Ast {
-	public:
-		virtual const std::string opString() const = 0;
+	///////////////////////
+	/// Unary Operators ///
+	///////////////////////
+	class NegUnop : public Ast {};
 
-		const NodeType type() const override { return OperandT; }
-	};
+	class NotUnop : public Ast {};
+
+	using Unop =
+		std::variant<
+			NegUnop,
+			NotUnop
+		>;
+
+	////////////////
+	/// Operands ///
+	////////////////
+	using Operand =
+		std::variant <
+			ImmOperand,
+			RegisterOperand,
+			UnopOperand,
+			PseudoOperand,
+			StackOperand
+		>;
 
 	// Container for an int
-	class ImmOperand : public Operand {
+	class ImmOperand : public Ast {
 		int m_value;
 	public:
 		ImmOperand(int value)
@@ -79,14 +88,10 @@ namespace AAst {
 		{}
 
 		int value() const { return m_value; }
-
-		const std::string opString() const override { return "$" + std::to_string(m_value); }
-
-		const NodeType type() const override { return ImmOperandT; }
 	};
 
 	// Container for a register name - initially blank
-	class RegisterOperand : public Operand {
+	class RegisterOperand : public Ast {
 		// Name/address of the register
 		std::string m_destination;
 	public:
@@ -96,20 +101,43 @@ namespace AAst {
 
 		//Returns a const reference to the destination address
 		const std::string& destination() const { return m_destination; }
-
-		const std::string opString() const override { return m_destination; }
-
-		const NodeType type() const override { return RegisterOperandT; }
 	};
 
-	// Base class from which to derive types of instruction
-	class Instruction : public Ast {
+	class PseudoOperand : public Ast {
+		std::string m_identifier;
 	public:
-		const NodeType type() const override { return InstructionT; };
+		PseudoOperand() = delete;
+		PseudoOperand(const std::string& identifier)
+			: m_identifier{identifier}
+		{}
 	};
+
+	class StackOperand : public Ast {
+		int m_value;
+	public:
+		StackOperand() = delete;
+		StackOperand(int value)
+			: m_value{value}
+		{}
+	};
+
+	class UnopOperand : public Ast {
+		Unop m_unop;
+		std::unique_ptr<Operand> m_operand;
+	public:
+		UnopOperand() = delete;
+		UnopOperand(Unop& unop, std::unique_ptr<Operand>&& operand)
+			: m_unop{unop}
+			, m_operand{std::move(operand)}
+		{}
+	};
+
+	///////////////////
+	/// Instruction ///
+	///////////////////
 
 	// Container for two pointers to operands
-	class MovInstruction : public Instruction {
+	class MovInstruction : public Ast {
 		std::unique_ptr<Operand> m_toMove;
 		std::unique_ptr<RegisterOperand> m_destination;
 	public:
@@ -125,10 +153,16 @@ namespace AAst {
 	};
 
 	// Empty class to represent return
-	class RetInstruction : public Instruction {
+	class RetInstruction : public Ast {
 	public:
 		const NodeType type() const override { return RetInstructionT; }
 	};
+
+	using Instruction =
+		std::variant<
+			MovInstruction,
+			RetInstruction
+		>;
 
 
 	// Container for std::string

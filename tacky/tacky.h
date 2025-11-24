@@ -11,63 +11,77 @@
 #include <variant>
 
 namespace Tky {
-
-     // Represents the negate operator
-     class NegateUnop {
-
-     };
-
-     // Represents bitwise not
-     class ComplementUnop {
-
-     };
-
-     // Represents unary operators
-     // Contains a variant that allows for polymorphism
      class Unop {
+          const std::string& m_unop;
+     public:
+          Unop() = delete;
+          Unop(const std::string& unop)
+               : m_unop(unop)
+          {}
 
+          const std::string& unop() const { return m_unop; }
      };
 
      // Represents a variable value
      class VariableValue {
+          const std::string m_variable;
+     public:
+          VariableValue() = delete;
+          VariableValue(const std::string& variable)
+               : m_variable(variable)
+          {}
 
+          const std::string& variable() const { return m_variable; }
      };
 
      // represents a const value
      class ConstantValue {
+          const int m_constant;
+     public:
+          ConstantValue() = delete;
+          ConstantValue(int constant)
+               : m_constant(constant)
+          {}
 
+          const int constant() const { return m_constant; }
      };
 
 
      using Value =  std::variant<
-                         std::unique_ptr<VariableValue>,
-                         std::unique_ptr<ConstantValue>
+                         VariableValue,
+                         ConstantValue
                     >;
 
      // represents a unary operator and the value it operates on
      // Can form part of a chain of operators
      class UnaryInstruction {
-          std::unique_ptr<Unop> m_unop;
-          std::unique_ptr<Value> m_src;
-          std::unique_ptr<Value> m_dst;
+          Unop m_unop;
+          Value m_src;
+          Value m_dst;
      public:
           UnaryInstruction() = delete;
-          UnaryInstruction(std::unique_ptr<Unop>&& unop, std::unique_ptr<Value>&& src, std::unique_ptr<Value>&& dst)
-               : m_unop(std::move(unop))
-               , m_src(std::move(src))
-               , m_dst(std::move(dst))
+          UnaryInstruction(Unop& unop, Value& src, Value& dst)
+               : m_unop(unop)
+               , m_src(src)
+               , m_dst(dst)
           {}
+
+          const Unop& unop() const { return m_unop; }
+          const Value& src() const { return m_src; }
+          const Value& dst() const { return m_dst; }
      };
 
      // Represents a return instruction
      // Contains only the final value to return
      class ReturnInstruction {
-          std::unique_ptr<Value> m_value;
+          Value m_value;
      public:
           ReturnInstruction() = delete;
-          ReturnInstruction(std::unique_ptr<Value>&& value)
-               : m_value(std::move(value))
+          ReturnInstruction(Value& value)
+               : m_value(value)
           {}
+
+          const Value& value() const { return m_value; }
      };
 
 
@@ -86,17 +100,23 @@ namespace Tky {
                : m_identifier(identifier)
                , m_instructions(std::move(instructions))
           {}
+          const std::string& identifier() const { return m_identifier; }
+          const std::vector<std::unique_ptr<Instruction>>& instructions() const { return m_instructions; }
      };
 
      // Root node of the tacky tree
      // Contains a function
      class Program {
-          const std::unique_ptr<Function> m_function;
+          std::unique_ptr<Function> m_function;
      public:
           Program() = delete;
-          Program(std::unique_ptr<Function>&& function)
+          explicit Program(std::unique_ptr<Function>&& function)
                : m_function(std::move(function))
           {}
+
+          const Function& function() const { return *m_function; }
+
+
      };
 }
 #endif //DCC_TACKY_H
