@@ -30,22 +30,6 @@ namespace AAst {
 		"MovInstruction", "RetInstruction", "Immediate", "RegisterOperand"};
 	static_assert(std::size(nodeTypeStrings) == NodeTypeLength && "nodeTypeStrings is a different length to NodeType");
 
-	class Ast;
-	class Program;
-	class Function;
-	class Identifier;
-
-	class MovInstruction;
-	class RetInstruction;
-	class UnopInstruction;
-	class StackallocInstruction;
-
-	class ImmOperand;
-	class RegisterOperand;
-	class UnopOperand;
-	class PseudoOperand;
-	class StackOperand;
-
 	// identify to get the string
 	// <<operator as friend
 	// virtual destructor
@@ -53,6 +37,18 @@ namespace AAst {
 	public:
 		virtual ~Ast() = default;
 	};
+
+	/////////////////
+	/// Registers ///
+	/////////////////
+	enum Register {
+		AX,
+		R10,
+		max_register_count
+	};
+	constexpr std::array<std::string, max_register_count> registerStrings{"ax","r10"};
+	static_assert(std::size(registerStrings) == max_register_count
+		&& "Register enum and registerStrings are different sizes");
 
 	///////////////////////
 	/// Unary Operators ///
@@ -70,11 +66,17 @@ namespace AAst {
 	////////////////
 	/// Operands ///
 	////////////////
+
+	// Forward declared because some Operands need nesting
+	class ImmOperand;
+	class RegisterOperand;
+	class PseudoOperand;
+	class StackOperand;
+
 	using Operand =
 		std::variant <
 			ImmOperand,
 			RegisterOperand,
-			UnopOperand,
 			PseudoOperand,
 			StackOperand
 		>;
@@ -93,25 +95,30 @@ namespace AAst {
 	// Container for a register name - initially blank
 	class RegisterOperand : public Ast {
 		// Name/address of the register
-		std::string m_destination;
+		Register m_register;
 	public:
-		RegisterOperand(const std::string& destination)
-			: m_destination{destination}
+		RegisterOperand() = delete;
+		RegisterOperand(Register& reg)
+			: m_register{reg}
 		{}
 
 		//Returns a const reference to the destination address
-		const std::string& destination() const { return m_destination; }
+		const Register reg() const { return m_register; }
 	};
 
+	// Placeholder for an address relative to the base pointer
 	class PseudoOperand : public Ast {
-		std::string m_identifier;
+		std::string m_pseudoAddress;
 	public:
 		PseudoOperand() = delete;
-		PseudoOperand(const std::string& identifier)
-			: m_identifier{identifier}
+		PseudoOperand(const std::string& pseudoAddress)
+			: m_pseudoAddress{pseudoAddress}
 		{}
+
+		const std::string& pseudoAddress() const { return m_pseudoAddress; }
 	};
 
+	// Operand to show the offset of an address from the base pointer
 	class StackOperand : public Ast {
 		int m_value;
 	public:
@@ -119,17 +126,8 @@ namespace AAst {
 		StackOperand(int value)
 			: m_value{value}
 		{}
-	};
 
-	class UnopOperand : public Ast {
-		Unop m_unop;
-		std::unique_ptr<Operand> m_operand;
-	public:
-		UnopOperand() = delete;
-		UnopOperand(Unop& unop, std::unique_ptr<Operand>&& operand)
-			: m_unop{unop}
-			, m_operand{std::move(operand)}
-		{}
+		const int value() const { return m_value; }
 	};
 
 	///////////////////
@@ -139,60 +137,79 @@ namespace AAst {
 	// Container for two pointers to operands
 	class MovInstruction : public Ast {
 		std::unique_ptr<Operand> m_toMove;
-		std::unique_ptr<RegisterOperand> m_destination;
+		std::unique_ptr<Operand> m_destination;
 	public:
-		MovInstruction(std::unique_ptr<Operand>&& toMove, std::unique_ptr<RegisterOperand>&& destination)
+		MovInstruction(std::unique_ptr<Operand>&& toMove, std::unique_ptr<Operand>&& destination)
 			: m_toMove{std::move(toMove)}
 			, m_destination{std::move(destination)}
 		{}
 
 		const Operand& toMove() { return *m_toMove; }
 		const Operand& destination() { return *m_destination; }
-
-		const NodeType type() const override { return MovInstructionT; }
 	};
 
 	// Empty class to represent return
 	class RetInstruction : public Ast {
+		std::unique_ptr<Operand> m_returnValue;
 	public:
-		const NodeType type() const override { return RetInstructionT; }
+		RetInstruction() = delete;
+		RetInstruction(std::unique_ptr<Operand>&& returnValue)
+			: m_returnValue{std::move(returnValue)}
+		{}
+
+		const Operand& returnValue() const { return *m_returnValue; }
+	};
+
+	// Class to represent a unary operator and the value it acts on
+	class UnopInstruction : public Ast {
+		std::unique_ptr<Unop> m_unop;
+		std::unique_ptr<Operand> m_operand;
+	public:
+		UnopInstruction() = delete;
+		UnopInstruction(std::unique_ptr<Unop>&& unop, std::unique_ptr<Operand>&& operand)
+			: m_unop{std::move(unop)}
+			, m_operand{std::move(operand)}
+		{}
+
+		const Unop& unop() const { return *m_unop; }
+		const Operand& operand() const { return *m_operand; }
+	};
+
+	// Class to represent how much to increment the stack pointer by
+	// Should only have one instance of this at the start of a function's instruction list
+	class StackallocInstruction : public Ast {
+		int m_stackSize;
+	public:
+		StackallocInstruction() = delete;
+		StackallocInstruction(int stackSize)
+			: m_stackSize{stackSize}
+		{}
+
+		const int stackSize() const { return m_stackSize; }
 	};
 
 	using Instruction =
 		std::variant<
 			MovInstruction,
-			RetInstruction
+			RetInstruction,
+			UnopInstruction,
+			StackallocInstruction
 		>;
 
 
-	// Container for std::string
-	class Identifier : public Ast {
-		std::string m_identifier;
-	public:
-		Identifier(std::string&& identifier)
-			: m_identifier{std::move(identifier)}
-		{}
-
-		const std::string& identifier() const { return m_identifier; }
-
-		const NodeType type() const override { return IdentifierT; }
-	};
 
 	// Container for pointer to identifier and pointer to list of pointers to instructions
 	class Function : public Ast {
-		std::unique_ptr<Identifier> m_identifier;
+		std::string m_identifier;
 		std::vector<std::unique_ptr<Instruction>> m_instructions;
 	public:
-		Function(std::unique_ptr<Identifier>&& identifier, std::vector<std::unique_ptr<Instruction>>&& instructions)
-			: m_identifier{std::move(identifier)}
+		Function(const std::string& identifier, std::vector<std::unique_ptr<Instruction>>&& instructions)
+			: m_identifier{identifier}
 			, m_instructions{std::move(instructions)}
 		{}
 
-		const Identifier& identifier() const { return *m_identifier; }
-
+		const std::string& identifier() const { return m_identifier; }
 		const std::vector<std::unique_ptr<Instruction>>& instructions() const { return m_instructions; }
-
-		const NodeType type() const override { return FunctionT; }
 	};
 
 	// Container for pointer to function
@@ -204,8 +221,6 @@ namespace AAst {
 		{}
 
 		const Function& function() const { return *m_function; }
-
-		const NodeType type() const override { return ProgramT; }
 	};
 }
 #endif //DCC_ASSEMBLY_AST_H
