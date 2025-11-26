@@ -1,10 +1,9 @@
 //
 // Created by duncan on 11/24/25.
 //
-#include "tacky.h"
+#include "tacky_generator.h"
 #include "../assembly_generator/assembly_ast.h"
 #include "../lexer/tokens.h"
-#include "../parser/ast.h"
 
 namespace TkyGen {
     using InstructionList = std::vector<std::unique_ptr<Tky::Instruction>>;
