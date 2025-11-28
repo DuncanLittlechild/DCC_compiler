@@ -22,6 +22,9 @@ namespace Tky {
           const std::string& unop() const { return m_unop; }
      };
 
+     /////////////
+     /// Value ///
+     /////////////
      // Represents a variable value
      class VariableValue {
           const std::string m_variable;
@@ -52,6 +55,9 @@ namespace Tky {
                          ConstantValue
                     >;
 
+     ////////////////////
+     /// Instructions ///
+     ////////////////////
      // represents a unary operator and the value it operates on
      // Can form part of a chain of operators
      class UnaryInstruction {
@@ -89,6 +95,10 @@ namespace Tky {
                               UnaryInstruction,
                               ReturnInstruction
                          >;
+
+     ////////////////
+     /// Function ///
+     ////////////////
      // Root node of functions
      // Contains an identifier, and a list of instructions
      class Function {
@@ -104,6 +114,9 @@ namespace Tky {
           const std::vector<std::unique_ptr<Instruction>>& instructions() const { return m_instructions; }
      };
 
+     ///////////////
+     /// Program ///
+     ///////////////
      // Root node of the tacky tree
      // Contains a function
      class Program {

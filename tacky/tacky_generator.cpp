@@ -5,12 +5,13 @@
 #include "../assembly_generator/assembly_ast.h"
 #include "../lexer/tokens.h"
 
+// Generates a three address code Ast from a C Ast
 namespace TkyGen {
     using InstructionList = std::vector<std::unique_ptr<Tky::Instruction>>;
 
     std::string createTempName() {
         static int counter {0};
-        return "tmp" + std::to_string(++counter);
+        return "tmp." + std::to_string(++counter);
     }
 
     Tky::Unop parseUnop(Ast::UnaryOperator& unop) {
@@ -31,11 +32,15 @@ namespace TkyGen {
     // instructions that spell out each modification performed on the constant
     Tky::Value parseInstructionList(Ast::Expression& e, InstructionList& list) {
         return std::visit([&](auto&& arg)-> Tky::Value {
-            using T = std::decay_t<decltype(arg)>;
+            using T = std::decay_t<decltype(arg)>;// Otherwise, create an unop expression
+
             // If constant expression, create the constant
             if constexpr (std::is_same_v<T, Ast::ConstantExpression>) {
                 return parseConstantValue(arg.constant());
-            } else if constexpr (std::is_same_v<T, Ast::UnopExpression>) {
+            }
+
+            // Otherwise, create an unop expression
+            else if constexpr (std::is_same_v<T, Ast::UnopExpression>) {
                 Tky::Value src {parseInstructionList(e, list)};
                 Tky::Value dst {createTempName()};
                 Tky::Unop unop {parseUnop(std::get<Ast::UnopExpression>(e).unop())};
@@ -65,6 +70,7 @@ namespace TkyGen {
     std::unique_ptr<Tky::Function> parseFunction(const Ast::Function& function) {
         const std::string& identifier {function.identifier().name()};
         std::vector<std::unique_ptr<Tky::Instruction>> instructions {preParseInstructionList(function.statement())};
+        return std::make_unique<Tky::Function>(identifier, std::move(instructions));
     }
 
     Tky::Program parseProgram(Ast::Program& program) {
