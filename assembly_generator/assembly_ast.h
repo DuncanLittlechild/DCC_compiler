@@ -9,6 +9,7 @@
 #include <vector>
 #include <array>
 #include <variant>
+#include <cmath>
 
 namespace AAst {
 	enum NodeType {
@@ -43,22 +44,22 @@ namespace AAst {
 		R10,
 		max_register_count
 	};
-	constexpr std::array<std::string, max_register_count> registerStrings{"ax","r10"};
+	constexpr std::array<std::string, max_register_count> registerStrings{"eax","r10d"};
 	static_assert(std::size(registerStrings) == max_register_count
 		&& "Register enum and registerStrings are different sizes");
 
 	///////////////////////
 	/// Unary Operators ///
 	///////////////////////
-	class NegUnop : public Ast {};
+	enum Unop {
+		NegUnop,
+		NotUnop,
+		max_unop_count
+	};
 
-	class NotUnop : public Ast {};
-
-	using Unop =
-		std::variant<
-			NegUnop,
-			NotUnop
-		>;
+	constexpr std::array<std::string, max_unop_count> unopStrings {"negl", "notl"};
+	static_assert(std::size(unopStrings) == max_unop_count
+		&& "Unop enum and unopStrings are different sizes");
 
 	////////////////
 	/// Operands ///
@@ -149,9 +150,6 @@ namespace AAst {
 		void setDestination(Operand destination) { m_destination = std::move(destination); }
 	};
 
-	// Empty class to represent return
-	class RetInstruction : public Ast {};
-
 	// Class to represent a unary operator and the value it acts on
 	class UnopInstruction : public Ast {
 		Unop m_unop;
@@ -163,7 +161,7 @@ namespace AAst {
 			, m_operand{std::move(operand)}
 		{}
 
-		const Unop& unop() const { return m_unop; }
+		Unop& unop() { return m_unop; }
 		Operand& operand() { return m_operand; }
 
 		void setOperand(Operand operand) { m_operand = std::move(operand); }
@@ -176,18 +174,21 @@ namespace AAst {
 	public:
 		StackallocInstruction() = delete;
 		StackallocInstruction(int stackSize)
-			: m_stackSize{stackSize}
+			: m_stackSize{abs(stackSize)}
 		{}
 
 		const int stackSize() const { return m_stackSize; }
 	};
 
+	// Empty class to represent return
+	class RetInstruction : public Ast {};
+
 	using Instruction =
 		std::variant<
 			MovInstruction,
-			RetInstruction,
 			UnopInstruction,
-			StackallocInstruction
+			StackallocInstruction,
+			RetInstruction
 		>;
 
 	////////////////
@@ -207,6 +208,7 @@ namespace AAst {
 
 		const std::string& identifier() const { return m_identifier; }
 		InstructionList& instructions() { return m_instructions; }
+		const InstructionList& instructions() const { return m_instructions; }
 
 		void setInstructions(InstructionList&& instructions) { m_instructions = std::move(instructions); }
 	};

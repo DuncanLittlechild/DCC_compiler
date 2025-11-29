@@ -9,14 +9,18 @@
 #include "../assembly_generator/assembly_ast.h"
 
 namespace AssemblyEmitter {
-    using FilePath = std::filesystem::path;
-    using InstructionList = std::vector<std::unique_ptr<AAst::Instruction>>;
+  using FilePath = std::filesystem::path;
+    using AAstInstructionList = std::vector<std::unique_ptr<AAst::Instruction>>;
+
+    std::string getOperandString(AAst::Operand& op);
 
     // Prints each instruction
-    void emitFromMovInstruction(AAst::MovInstruction& instruction, std::ofstream& outputFile);
+    void emitFromMovInstruction(AAst::MovInstruction& inst, std::ofstream& outputFile);
+
+    void emitFromUnopInstruction(AAst::UnopInstruction& inst, std::ofstream& outputFile);
 
     // Prints the instructions
-    void emitFromInstructions(const InstructionList& instructions, std::ofstream& outputFile);
+    void emitFromInstructions(const AAstInstructionList& instructions, std::ofstream& outputFile);
 
     // Prints the start and end of the function
     void emitFromFunction(const AAst::Function& function, std::ofstream& outputFile);

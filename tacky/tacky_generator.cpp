@@ -3,6 +3,7 @@
 //
 #include "tacky_generator.h"
 #include "../assembly_generator/assembly_ast.h"
+#include "../helpers/overload.h"
 #include "../lexer/tokens.h"
 
 // Generates a three address code Ast from a C Ast
@@ -31,19 +32,14 @@ namespace TkyGen {
     // Uses recursion to descend until a constant is encountered, then constructs a list of
     // instructions that spell out each modification performed on the constant
     Tky::Value parseInstructionList(Ast::Expression& e, InstructionList& list) {
-        return std::visit([&](auto&& arg)-> Tky::Value {
-            using T = std::decay_t<decltype(arg)>;// Otherwise, create an unop expression
-
-            // If constant expression, create the constant
-            if constexpr (std::is_same_v<T, Ast::ConstantExpression>) {
-                return parseConstantValue(arg.constant());
-            }
-
-            // Otherwise, create an unop expression
-            else if constexpr (std::is_same_v<T, Ast::UnopExpression>) {
-                Tky::Value src {parseInstructionList(e, list)};
+        return std::visit(Ol::overloaded{
+            [&list](Ast::ConstantExpression& exp) -> Tky::Value {
+                return parseConstantValue(exp.constant());
+            },
+            [&list](Ast::UnopExpression& exp) ->Tky::Value {
+                Tky::Value src {parseInstructionList(exp.expression(), list)};
                 Tky::Value dst {createTempName()};
-                Tky::Unop unop {parseUnop(std::get<Ast::UnopExpression>(e).unop())};
+                Tky::Unop unop {parseUnop(exp.unop())};
                 Tky::UnaryInstruction tmp {unop, src, dst};
                 list.push_back(std::make_unique<Tky::Instruction>(tmp));
                 return dst;

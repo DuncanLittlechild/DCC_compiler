@@ -8,6 +8,7 @@
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "assembly_generator/assembly_generator.h"
+#include "tacky/tacky_generator.h"
 #include "assembly_emitter/assembly_emitter.h"
 
 constexpr std::string_view g_stopAtLexStr{ "--lex"};
@@ -132,9 +133,14 @@ int main(const int argc, char* argv[]) {
         return 0;
     }
 
+    Tky::Program tackyTree {TkyGen::parseProgram(abstractSyntaxTree)};
+
     // Convert C Ast to assembly Ast
     // TODO: add a type member to all base classes that can be used to determine what type to dynamic_cast to
-    AAst::Program assemblyAbstractSyntaxTree{AssemblyGenerator::parseProgram(abstractSyntaxTree)};
+    AAst::Program assemblyAbstractSyntaxTree{AAstGen::generateProgram(tackyTree)};
+
+    AAstGen::findAndReplacePseudoOperands(assemblyAbstractSyntaxTree);
+    AAstGen::getStackSizeAndAddMovRegisters(assemblyAbstractSyntaxTree);
 
     // For now, just use gcc
     // generate string for compiled filename

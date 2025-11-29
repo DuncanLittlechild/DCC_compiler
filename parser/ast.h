@@ -9,6 +9,7 @@
 #include <memory>
 #include <variant>
 #include <iostream>
+#include <array>
 
 // Holds the structure for the classes that make up the abstract syntax tree
 namespace Ast {

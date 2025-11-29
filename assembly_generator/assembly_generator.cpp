@@ -27,7 +27,11 @@ namespace AAstGen {
                 return AAst::ImmOperand{ops.constant()};
             }
             else if constexpr (std::is_same_v<T, Tky::VariableValue>) {
-                return AAst::PseudoOperand{ops.variable()};
+                if (ops.variable() == AAst::registerStrings[AAst::AX]) {
+                    return AAst::RegisterOperand{AAst::AX};
+                } else {
+                    return AAst::PseudoOperand{ops.variable()};
+                }
             }
         };
 
@@ -38,10 +42,10 @@ namespace AAstGen {
         // Go through the possible Unary operator strings and return the right object
         const std::string& unopString {unop.unop()};
         if (unopString == Token::bitwisenotString) {
-            return AAst::NotUnop{};
+            return AAst::NotUnop;
         }
         else if (unopString == Token::negateString) {
-            return AAst::NegUnop{};
+            return AAst::NegUnop;
         }
     }
 
@@ -134,7 +138,8 @@ namespace AAstGen {
             return stackOffset;
         }
         else {
-            return stackOffset + offset;
+            stackOffset += offset;
+            return stackOffset;
         }
     }
 
@@ -155,6 +160,7 @@ namespace AAstGen {
             return stackOffset;
         }
     }
+
 
     void replacePseudoOperandInUnop(AAst::UnopInstruction& inst,
                                     PrToOffsetMap& prToStackOffset) {
@@ -217,8 +223,8 @@ namespace AAstGen {
 
     void getStackSizeAndAddMovRegisters(AAst::Program& program) {
         // Iterate over the instructions to find out how many new mov instructions need to be added
-        // Counter starts at 1 because of stackallocinstruction
-        int newIndicesCounter {1};
+        // Counter starts at 2 because of stackallocinstruction and the final mov instruction before ret
+        int newIndicesCounter {2};
         AAstInstructionList& currentInstructions{program.function().instructions()};
         for (auto& inst : currentInstructions) {
             if (needsRegisterStep(*inst)) {
@@ -234,16 +240,19 @@ namespace AAstGen {
         AAst::StackallocInstruction finalOffset {getStackOffset()};
         finalInstructions.push_back(std::make_unique<AAst::Instruction>(finalOffset));
 
+        // counter to keep track of the last offset
+        int lastOffset{0};
+
         for (auto& inst : currentInstructions) {
            if (needsRegisterStep(*inst)) {
                // All modifications are done on the instruction inst points to
                AAst::MovInstruction& movInst1 {std::get<AAst::MovInstruction>(*inst)};
                AAst::Operand dst {movInst1.destination()};
-               AAst::RegisterOperand reg {AAst::AX};
+               AAst::RegisterOperand reg {AAst::R10};
                movInst1.setDestination(reg);
 
                // Create new MovInstruction
-               AAst::MovInstruction movInst2 {dst, reg};
+               AAst::MovInstruction movInst2 {reg, dst};
 
                // Move inst to the new vector
                finalInstructions.push_back(std::move(inst));
