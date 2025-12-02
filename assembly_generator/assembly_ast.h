@@ -41,12 +41,18 @@ namespace AAst {
 	/////////////////
 	enum Register {
 		AX,
+		DX,
 		R10,
+		R11,
 		max_register_count
 	};
-	constexpr std::array<std::string, max_register_count> registerStrings{"eax","r10d"};
+	constexpr std::array<std::string, max_register_count> registerStrings{"eax","edx","r10d","r11"};
+	constexpr std::array<Register, max_register_count> registers{AX, DX, R10, R11};
 	static_assert(std::size(registerStrings) == max_register_count
 		&& "Register enum and registerStrings are different sizes");
+	static_assert(std::size(registers) == max_register_count
+		&& "Register enum and registers array are different sizes");
+
 
 	///////////////////////
 	/// Unary Operators ///
@@ -60,6 +66,27 @@ namespace AAst {
 	constexpr std::array<std::string, max_unop_count> unopStrings {"negl", "notl"};
 	static_assert(std::size(unopStrings) == max_unop_count
 		&& "Unop enum and unopStrings are different sizes");
+
+	////////////////////////
+	/// Binary Operators ///
+	///////////////////////
+	enum Binop {
+		AddBinop,
+		SubBinop,
+		MultiplyBinop,
+		max_binop_count
+	};
+
+	constexpr std::array<std::string, max_binop_count> binopStrings {"addl", "subl", "imull"};
+	static_assert(std::size(binopStrings) == max_binop_count
+		&& "Binop enum and BinopStrings are different sizes");
+
+	// Records if an Idiv instruction wants Eax (quotient for divide) or edx (remainder for modulo)
+	enum Idiv {
+		DivideIdiv,
+		ModuloIdiv,
+		max_idiv_count
+	};
 
 	////////////////
 	/// Operands ///
@@ -167,6 +194,41 @@ namespace AAst {
 		void setOperand(Operand operand) { m_operand = std::move(operand); }
 	};
 
+	// Class to represent a binary operator and the two values it acts on
+	class BinopInstruction : public Ast {
+		Binop m_binop;
+		Operand m_left;
+		Operand m_right;
+	public:
+		BinopInstruction() = delete;
+		BinopInstruction(Binop binop, Operand left, Operand right)
+			: m_binop{std::move(binop)}
+			, m_left{std::move(left)}
+			, m_right{std::move(right)}
+		{}
+
+		Binop& binop() { return m_binop; }
+		Operand& left() { return m_left; }
+		Operand& right() { return m_right; }
+
+		void setLeft(Operand operand) { m_left = std::move(operand); }
+		void setRight(Operand operand) { m_right = std::move(operand); }
+	};
+
+	// Class to represent divide and modulo operations
+	class IdivInstruction : public Ast {
+		Operand m_operand;
+	public:
+		IdivInstruction() = delete;
+		IdivInstruction(Operand operand)
+			: m_operand{std::move(operand)}
+		{}
+
+		Operand& operand() { return m_operand; }
+
+		void setOperand(Operand operand) { m_operand = std::move(operand); }
+	};
+
 	// Class to represent how much to increment the stack pointer by
 	// Should only have one instance of this at the start of a function's instruction list
 	class StackallocInstruction : public Ast {
@@ -180,6 +242,11 @@ namespace AAst {
 		const int stackSize() const { return m_stackSize; }
 	};
 
+	// Empty class to represent a cdq command
+	// cdq sign extends the value in eax into edx, creating a single 64 bit number
+	// This is a prerequisite for division
+	class CdqInstruction : public Ast {};
+
 	// Empty class to represent return
 	class RetInstruction : public Ast {};
 
@@ -187,7 +254,10 @@ namespace AAst {
 		std::variant<
 			MovInstruction,
 			UnopInstruction,
+			BinopInstruction,
+			IdivInstruction,
 			StackallocInstruction,
+			CdqInstruction,
 			RetInstruction
 		>;
 
