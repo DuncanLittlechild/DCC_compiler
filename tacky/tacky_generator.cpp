@@ -15,6 +15,10 @@ namespace TkyGen {
         return "tmp." + std::to_string(++counter);
     }
 
+    Tky::Binop parseBinop(Ast::BinaryOperator& binop) {
+        return Tky::Binop {binop.binop()};
+    }
+
     Tky::Unop parseUnop(Ast::UnaryOperator& unop) {
         return Tky::Unop {unop.unop()};
     }
@@ -31,17 +35,26 @@ namespace TkyGen {
     // Recursively parse an instruction list
     // Uses recursion to descend until a constant is encountered, then constructs a list of
     // instructions that spell out each modification performed on the constant
-    Tky::Value parseInstructionList(Ast::Expression& e, InstructionList& list) {
+    Tky::Value parseInstructionList(Ast::ExpressionPtr& e, InstructionList& list) {
         return std::visit(Ol::overloaded{
-            [&list](Ast::ConstantExpression& exp) -> Tky::Value {
-                return parseConstantValue(exp.constant());
+            [&list](std::unique_ptr<Ast::ConstantExpression>& exp) -> Tky::Value {
+                return parseConstantValue(exp->constant());
             },
-            [&list](Ast::UnopExpression& exp) ->Tky::Value {
-                Tky::Value src {parseInstructionList(exp.expression(), list)};
+            [&list](std::unique_ptr<Ast::UnopExpression>& exp) ->Tky::Value {
+                Tky::Unop unop {parseUnop(exp->unop())};
+                Tky::Value src {parseInstructionList(exp->expression(), list)};
                 Tky::Value dst {createTempName()};
-                Tky::Unop unop {parseUnop(exp.unop())};
                 Tky::UnaryInstruction tmp {unop, src, dst};
-                list.push_back(std::make_unique<Tky::Instruction>(tmp));
+                list.emplace_back(std::make_unique<Tky::Instruction>(tmp));
+                return dst;
+            },
+            [&list](std::unique_ptr<Ast::BinopExpression>& exp) -> Tky::Value {
+                Tky::Binop binop {parseBinop(exp->binop())};
+                Tky::Value src1 {parseInstructionList(exp->leftExpression(), list)};
+                Tky::Value src2 {parseInstructionList(exp->rightExpression(), list)};
+                Tky::Value dst {createTempName()};
+                Tky::BinaryInstruction tmp {binop, src1, src2, dst};
+                list.emplace_back(std::make_unique<Tky::Instruction>(tmp));
                 return dst;
             }
         }, e);
@@ -55,7 +68,7 @@ namespace TkyGen {
         if (type == Ast::KeywordStatementT) {
             const std::string& keyword {std::get<Ast::KeywordStatement>(statement).keyword()};
             if (keyword == Token::returnString) {
-                Ast::Expression& expression {std::get<Ast::KeywordStatement>(statement).expression()};
+                Ast::ExpressionPtr& expression {std::get<Ast::KeywordStatement>(statement).expression()};
                 Tky::Value returnVal = parseInstructionList(expression, instructions);
                 instructions.push_back(std::make_unique<Tky::Instruction>(parseReturnInstruction(returnVal)));
             }

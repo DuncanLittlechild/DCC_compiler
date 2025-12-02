@@ -23,7 +23,6 @@ namespace Ast {
 	/////////////////
 
 	// Represents and stores the data for unary operators
-	// Inherits the m_operator member from it's parent
 	class UnaryOperator : public Ast {
 		const std::string& m_unop;
 	public:
@@ -33,6 +32,18 @@ namespace Ast {
 		{}
 
 		const std::string& unop() const { return m_unop; }
+	};
+
+	// Represents and stores the data for Binary Operators
+	class BinaryOperator : public Ast {
+		const std::string& m_binop;
+	public:
+		BinaryOperator() = delete;
+		BinaryOperator(const std::string& binop)
+			: m_binop {binop}
+		{}
+
+		const std::string& binop() const { return m_binop; }
 	};
 
 	//////////////////
@@ -69,11 +80,13 @@ namespace Ast {
 	///////////////////
 	class ConstantExpression;
 	class UnopExpression;
+	class BinopExpression;
 
 	// variant to allow polymorphic expressions
-	using Expression =	std::variant<
-							ConstantExpression,
-							UnopExpression
+	using ExpressionPtr =	std::variant<
+							std::unique_ptr<ConstantExpression>,
+							std::unique_ptr<UnopExpression>,
+							std::unique_ptr<BinopExpression>
 						>;
 
 	// An expression that holds a particular constant
@@ -87,19 +100,37 @@ namespace Ast {
 		IntConstant& constant() const { return *m_constant;}
 	};
 
+	class BinopExpression : public Ast {
+		ExpressionPtr m_leftExpression{};
+		BinaryOperator m_binop;
+		ExpressionPtr m_rightExpression{};
+	public:
+		BinopExpression() = delete;
+		BinopExpression(ExpressionPtr&& leftExpression, BinaryOperator binop, ExpressionPtr&& rightExpression)
+				: m_leftExpression {std::move(leftExpression)}
+				, m_binop		   {std::move(binop)}
+				, m_rightExpression{std::move(rightExpression)}
+		{}
+
+		ExpressionPtr&  leftExpression() { return m_leftExpression; }
+		BinaryOperator& binop()  { return m_binop; }
+		ExpressionPtr& rightExpression() { return m_rightExpression; }
+	};
+
 	// A unary operator and another expression
 	// As unary operators can be chained, this can be nested an arbitrary number of times
 	class UnopExpression : public Ast {
-		std::unique_ptr<UnaryOperator> m_unop{};
-		std::unique_ptr<Expression> m_expression{};
+		UnaryOperator m_unop;
+		ExpressionPtr m_expression;
 	public:
-		UnopExpression(std::unique_ptr<UnaryOperator>&& unop, std::unique_ptr<Expression>&& expression)
+		UnopExpression() = delete;
+		UnopExpression(UnaryOperator unop, ExpressionPtr&& expression)
 			: m_unop{std::move(unop)}
 			, m_expression{std::move(expression)}
 		{}
 
-		UnaryOperator& unop() const { return *m_unop; }
-		Expression& expression() const { return *m_expression; }
+		UnaryOperator&    unop() { return m_unop; }
+		ExpressionPtr& expression() { return m_expression; }
 	};
 
 	///////////////////
@@ -115,16 +146,16 @@ namespace Ast {
 	// The keyword used will be taken from those in the Tokens file
 	class KeywordStatement : public Ast {
 		const std::string& m_keyword;
-		std::unique_ptr<Expression> m_expression{};
+		ExpressionPtr m_expression{};
 	public:
 		KeywordStatement() = delete;
-		KeywordStatement(const std::string& keyword, std::unique_ptr<Expression>&& expression)
+		KeywordStatement(const std::string& keyword, ExpressionPtr&& expression)
 			: m_keyword{keyword}
 			, m_expression{std::move(expression)}
 		{}
 
 		const std::string& keyword() const { return m_keyword; }
-		Expression& expression() const { return *m_expression; }
+		ExpressionPtr& expression() { return m_expression; }
 	};
 
 	//////////////////

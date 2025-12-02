@@ -21,7 +21,7 @@ namespace TkyGen {
     // Recursively parse an instruction list
     // Uses recursion to descend until a constant is encountered, then constructs a list of
     // instructions that spell out each modification performed on the constant
-    Tky::Value parseInstructionList(Ast::Expression& e, InstructionList& list);
+    Tky::Value parseInstructionList(Ast::ExpressionPtr& e, InstructionList& list);
 
     // Helper function to handle content in the Ast::Statement node
     // Directs to the parseInstructionList function

@@ -22,6 +22,17 @@ namespace Tky {
           const std::string& unop() const { return m_unop; }
      };
 
+     class Binop {
+          const std::string& m_binop;
+     public:
+          Binop() = delete;
+          Binop(const std::string& binop)
+               : m_binop(binop)
+          {}
+
+          const std::string& binop() const { return m_binop; }
+     };
+
      /////////////
      /// Value ///
      /////////////
@@ -77,6 +88,26 @@ namespace Tky {
           const Value& dst() const { return m_dst; }
      };
 
+     class BinaryInstruction {
+          Binop m_binop;
+          Value m_src1;
+          Value m_src2;
+          Value m_dst;
+     public:
+          BinaryInstruction() = delete;
+          BinaryInstruction(Binop& binop, Value& src1, Value& src2, Value& dst)
+               : m_binop(binop)
+               , m_src1(src1)
+               , m_src2(src2)
+               , m_dst(dst)
+          {}
+
+          const Binop& binop() const { return m_binop; }
+          const Value& src1() const { return m_src1; }
+          const Value& src2() const { return m_src2; }
+          const Value& dst() const { return m_dst; }
+     };
+
      // Represents a return instruction
      // Contains only the final value to return
      class ReturnInstruction {
@@ -93,6 +124,7 @@ namespace Tky {
 
      using Instruction = std::variant<
                               UnaryInstruction,
+                              BinaryInstruction,
                               ReturnInstruction
                          >;
 

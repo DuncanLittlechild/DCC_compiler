@@ -10,7 +10,16 @@
 #include <array>
 #include <typeinfo>
 
+#include "../helpers/overload.h"
+
 namespace Token {
+    // Precedences for binary operators
+    constexpr int ADDPRECEDENCE      {45};
+    constexpr int SUBTRACTPRECEDENCE {45};
+    constexpr int MULTIPLYPRECEDENCE {50};
+    constexpr int DIVIDEPRECEDENCE   {50};
+    constexpr int MODULOPRECEDENCE   {50};
+
     // Empty structs
     struct Base {
         virtual bool operator==(const Base& rhs) const {
@@ -51,15 +60,32 @@ namespace Token {
     struct Semicolon : Base {};
     static constexpr std::string semicolonString {";"};
 
+    // Binary operators
+    // Mixin class to give the precedence member
+    struct Binop { const int precedence; };
+    struct Add      : Base, Binop { Add()      : Binop{ADDPRECEDENCE} {}};
+    struct Divide   : Base, Binop { Divide()   : Binop{DIVIDEPRECEDENCE} {}};
+    struct Multiply : Base, Binop { Multiply() : Binop{MULTIPLYPRECEDENCE} {}};
+    struct Modulo   : Base, Binop { Modulo()   : Binop{MODULOPRECEDENCE}{}};
+
+    static constexpr std::string addString     {"+"};
+    static constexpr std::string divideString  {"/"};
+    static constexpr std::string multiplyString{"*"};
+    static constexpr std::string moduloString  {"%"};
+
+
     // Unary operators
-    struct Negate : Base {};
-    static constexpr std::string negateString {"-"};
+    // Note that negate can also be a binary operator, depending on context
+    struct Negate : Base, Binop { Negate() : Binop{SUBTRACTPRECEDENCE}{}};
     struct Decrement : Base {};
-    static constexpr std::string decrementString {"--"};
     struct Bitwisenot : Base {};
+
+    static constexpr std::string negateString {"-"};
+    static constexpr std::string decrementString {"--"};
     static constexpr std::string bitwisenotString {"~"};
+
     constexpr std::array<const std::string*, 2> unaryOperatorStringPtrs {&negateString, &bitwisenotString};
-    inline bool isUnaryOperator(const std::string& unop){
+    inline bool isUnop(const std::string& unop){
         return std::find(unaryOperatorStringPtrs.begin(), unaryOperatorStringPtrs.end(), &unop) != unaryOperatorStringPtrs.end();
     }
 
@@ -88,6 +114,7 @@ namespace Token {
         std::variant<
             Return, Int, Void,
             OpenParen, CloseParen, OpenBrace, CloseBrace, Semicolon,
+            Add, Multiply, Divide, Modulo,
             Negate, Decrement, Bitwisenot,
             Identifier, Constant
         > type;
@@ -96,6 +123,26 @@ namespace Token {
             return lhs.type == rhs.type;
         }
     };
+
+    // Alias to shorten or statements
+    template<typename T>
+    constexpr bool isBinopT =
+                    std::is_same_v<T, Add>
+                    || std::is_same_v<T, Negate>
+                    || std::is_same_v<T, Divide>
+                    || std::is_same_v<T, Multiply>
+                    || std::is_same_v<T, Modulo>;
+
+    inline bool isBinop(const Token& tok) {
+        return std::visit([](auto& arg) -> bool {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (isBinopT<T>) {
+                return true;
+            } else {
+                return false;
+            }
+        }, tok.type);
+    }
 
     template <typename T>
     inline Token tokenFactory(const T& type) {
@@ -117,7 +164,7 @@ namespace Token {
 
     // Keywords must be lower down the array than patterns for this to work
     // Update when add new token
-    static const std::array<regexLookup, 13> patterns {
+    static const std::array<regexLookup, 17> patterns {
         {
             {std::regex("^[a-zA-Z_]\\w*\\b"), [](const auto& m) { return tokenFactory(Identifier{}, m); }},
             {std::regex("^[0-9]+\\b"),        [](const auto& m) { return tokenFactory(Constant{}, m); }},
@@ -131,7 +178,11 @@ namespace Token {
             {std::regex("^;"),                [](const auto&)   { return tokenFactory(Semicolon{}); }},
             {std::regex("^--"),               [](const auto&)   { return tokenFactory(Decrement{}); }},
             {std::regex("^-"),                [](const auto&)   { return tokenFactory(Negate{}); }},
-            {std::regex("^~"),                [](const auto&)   { return tokenFactory(Bitwisenot{}); }}
+            {std::regex("^~"),                [](const auto&)   { return tokenFactory(Bitwisenot{}); }},
+            {std::regex("^\\+"),                [](const auto&)   { return tokenFactory(Add{}); }},
+            {std::regex("^/"),                [](const auto&)   { return tokenFactory(Divide{}); }},
+            {std::regex("^\\*"),                [](const auto&)   { return tokenFactory(Multiply{}); }},
+            {std::regex("^%"),                [](const auto&)   { return tokenFactory(Modulo{}); }}
         }};
 }
 
@@ -147,21 +198,25 @@ namespace Visitor {
 
     // function to get the name of the struct held in a Token::Token std::variant
     // Update when add new token
-    inline const std::string& getStructName(Token::Token& token) {
+    inline const std::string& getTokenName(const Token::Token& token) {
         return std::visit(Overloaded{
-            [](Token::Return& ret) -> const std::string&     { return Token::returnString; },
-            [](Token::Void& ret) -> const std::string&       { return Token::voidString; },
-            [](Token::Int& ret) -> const std::string&        { return Token::intString; },
-            [](Token::OpenParen& ret) -> const std::string&  { return Token::openParenString; },
-            [](Token::CloseParen& ret) -> const std::string& { return Token::closeParenString; },
-            [](Token::OpenBrace& ret) -> const std::string&  { return Token::openBraceString; },
-            [](Token::CloseBrace& ret) -> const std::string& { return Token::closeBraceString;},
-            [](Token::Semicolon& ret) -> const std::string&  { return Token::semicolonString; },
-            [](Token::Identifier& ret) -> const std::string& { return Token::identifierString; },
-            [](Token::Constant& ret) -> const std::string&   { return Token::constantString; },
-            [](Token::Decrement& ret) -> const std::string&  { return Token::decrementString; },
-            [](Token::Negate& ret) -> const std::string&     { return Token::negateString; },
-            [](Token::Bitwisenot& ret) -> const std::string& { return Token::bitwisenotString; }
+            [](const Token::Return& ret) -> const std::string&     { return Token::returnString; },
+            [](const Token::Void& ret) -> const std::string&       { return Token::voidString; },
+            [](const Token::Int& ret) -> const std::string&        { return Token::intString; },
+            [](const Token::OpenParen& ret) -> const std::string&  { return Token::openParenString; },
+            [](const Token::CloseParen& ret) -> const std::string& { return Token::closeParenString; },
+            [](const Token::OpenBrace& ret) -> const std::string&  { return Token::openBraceString; },
+            [](const Token::CloseBrace& ret) -> const std::string& { return Token::closeBraceString;},
+            [](const Token::Semicolon& ret) -> const std::string&  { return Token::semicolonString; },
+            [](const Token::Identifier& ret) -> const std::string& { return Token::identifierString; },
+            [](const Token::Constant& ret) -> const std::string&   { return Token::constantString; },
+            [](const Token::Decrement& ret) -> const std::string&  { return Token::decrementString; },
+            [](const Token::Negate& ret) -> const std::string&     { return Token::negateString; },
+            [](const Token::Bitwisenot& ret) -> const std::string& { return Token::bitwisenotString; },
+            [](const Token::Add& ret) -> const std::string&        { return Token::addString; },
+            [](const Token::Divide& ret) -> const std::string&     { return Token::divideString; },
+            [](const Token::Multiply& ret) -> const std::string&   { return Token::multiplyString; },
+            [](const Token::Modulo& ret) -> const std::string&     { return Token::moduloString; },
         }, token.type);
     }
 

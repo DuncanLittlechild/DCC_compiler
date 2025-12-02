@@ -64,7 +64,7 @@ namespace Parser {
 			return m_vectorRef[index];
 		}
 
-		Token::Token& peekCurrent() const {
+		const Token::Token& peekCurrent() const {
 			return m_vectorRef[m_index];
 		}
 
@@ -77,8 +77,8 @@ namespace Parser {
 
 	Token::Token& expect(auto& expected, VectorAndIterator& tokens) {
 		Token::Token& actual {tokens.takeCurrent()};
-		if (Visitor::getStructName(actual) != expected) {
-			std::string error = "Parser::expect found unexpected token " + Visitor::getStructName(actual) +
+		if (Visitor::getTokenName(actual) != expected) {
+			std::string error = "Parser::expect found unexpected token " + Visitor::getTokenName(actual) +
 								" at index " + std::to_string(tokens.index());
 			throw std::invalid_argument(error);
 		}
@@ -97,8 +97,14 @@ namespace Parser {
 		return std::make_unique<Ast::Identifier>(identifier);
 	}
 
-	std::unique_ptr<Ast::UnaryOperator> parseUnaryOperator (auto& currentTokenName) {
-		return std::make_unique<Ast::UnaryOperator>(currentTokenName);
+	Ast::BinaryOperator parseBinaryOperator(VectorAndIterator& tokens) {
+		auto& currentTokenName {Visitor::getTokenName(tokens.takeCurrent())};
+		return Ast::BinaryOperator{currentTokenName};
+	}
+
+	Ast::UnaryOperator parseUnaryOperator (VectorAndIterator& tokens) {
+		auto& currentTokenName {Visitor::getTokenName(tokens.takeCurrent())};
+		return Ast::UnaryOperator{currentTokenName};
 	}
 
 	// Parse Integer values and return a pointer
@@ -110,33 +116,35 @@ namespace Parser {
 		return std::make_unique<Ast::IntConstant>(tokenValue);
 	}
 
-	Ast::Expression parseConstantExpression(auto& currentToken) {
-		return Ast::ConstantExpression{parseIntConstant(currentToken)};
+	Ast::ExpressionPtr parseConstantExpression(VectorAndIterator& tokens) {
+		auto& currentToken{tokens.takeCurrent()};
+		return std::make_unique<Ast::ConstantExpression>(parseIntConstant(currentToken));
 	}
 
 	// Construct the unary operator constant
 	// This can be nested an arbitrary number of times
-	Ast::Expression parseOperatorExpression(auto& currentTokenName, VectorAndIterator& tokens) {
-		auto unop {parseUnaryOperator(currentTokenName)};
-		auto constant{parseExpression(tokens)};
-		return Ast::UnopExpression{std::move(unop), std::move(constant)};
+	Ast::ExpressionPtr parseUnaryOperatorExpression(VectorAndIterator& tokens) {
+		auto unop {parseUnaryOperator(tokens)};
+		auto constant{parseFactor(tokens)};
+		return std::make_unique<Ast::UnopExpression>(unop, std::move(constant));
 	}
 
 	// Helper to work out what type of expression token to create
-	std::unique_ptr<Ast::Expression> parseExpression(VectorAndIterator& tokens) {
-		std::unique_ptr<Ast::Expression> expressionNode;
+	Ast::ExpressionPtr parseFactor(VectorAndIterator& tokens) {
+		Ast::ExpressionPtr expressionNode;
 
-		auto& currentToken {tokens.takeCurrent()};
-		auto& currentTokenName {Visitor::getStructName(currentToken)};
+		auto& currentToken {tokens.peekCurrent()};
+		auto& currentTokenName {Visitor::getTokenName(currentToken)};
 
 		// Go over the current token and choose the appropriate constant to generate
 		if (currentTokenName == Token::openParenString) {
-			expressionNode = parseExpression(tokens);
+			++tokens;
+			expressionNode = parseExpression(tokens, 0);
 			expect(Token::closeParenString, tokens);
 		} else if (currentTokenName == Token::constantString) {
-			expressionNode = std::make_unique<Ast::Expression>(parseConstantExpression(currentToken));
-		} else if (Token::isUnaryOperator(currentTokenName)){
-			expressionNode = std::make_unique<Ast::Expression>(parseOperatorExpression(currentTokenName, tokens));
+			expressionNode = parseConstantExpression(tokens);
+		} else if (Token::isUnop(currentTokenName)){
+			expressionNode = Ast::ExpressionPtr{parseUnaryOperatorExpression(tokens)};
 		} else {
 			throw std::invalid_argument(currentTokenName + "is not a recognised constant");
 		}
@@ -145,9 +153,35 @@ namespace Parser {
 		return expressionNode;
 	}
 
+	// Parse to create left-associative binary operations
+	// If there is another operation, the previous complete node becomes the left node of a new BinopExpression
+	Ast::ExpressionPtr parseExpression(VectorAndIterator& tokens, int minPrecedence) {
+		auto getPrecedence = [](auto& tok) -> int {
+			using T = std::decay_t<decltype(tok)>;
+			if constexpr (Token::isBinopT<T>) {
+				return tok.precedence;
+			}
+			else {
+				throw std::invalid_argument("getPrecedence should only be called on binary operators");
+			}
+		};
+
+		auto leftNode {parseFactor(tokens)};
+		auto* nextTokenPtr {&tokens.peekCurrent()};
+		int nextTokenPrecedence {getPrecedence(*nextTokenPtr)};
+		while (Token::isBinop(*nextTokenPtr) && nextTokenPrecedence >= minPrecedence) {
+			auto binop {parseBinaryOperator(tokens)};
+			auto rightNode {parseExpression(tokens, nextTokenPrecedence + 1)};
+			leftNode = std::make_unique<Ast::BinopExpression> (std::move(leftNode), binop, std::move(rightNode));
+			nextTokenPtr = &tokens.peekCurrent();
+			nextTokenPrecedence = getPrecedence(*nextTokenPtr);
+		}
+		return leftNode;
+	}
+
 	Ast::Statement parseKeywordStatement (const std::string& keyword, VectorAndIterator& tokens) {
 		// Get the return value
-		auto value {parseExpression(tokens)};
+		auto value {parseExpression(tokens, 0)};
 
 		return Ast::KeywordStatement{keyword, std::move(value)};
 	}
@@ -158,7 +192,7 @@ namespace Parser {
 		std::unique_ptr<Ast::Statement> statementNode;
 		
 		Token::Token& currentToken {tokens.takeCurrent()};
-		auto& currentTokenName {Visitor::getStructName(currentToken)};
+		auto& currentTokenName {Visitor::getTokenName(currentToken)};
 		
 		// Determine the subfunciton to pass the current token to
 		if (Token::isKeyword(currentTokenName)) {
